@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Orthogonal Search Harness</title>
+<title>Parallax</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -125,10 +125,6 @@
   .node.active .dot { background:var(--accent); border-color:var(--accent); transform:scale(1.3); animation:pulse 1.8s var(--ease) infinite; }
   .node.active .nlabel { color:var(--text); }
   @keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(91,155,213,.35);} 50%{box-shadow:0 0 0 7px rgba(91,155,213,0);} }
-  .loop { position:absolute; top:-16px; left:20%; transform:translateX(-50%); width:46px; height:14px; pointer-events:none; }
-  .loop svg { width:100%; height:100%; overflow:visible; }
-  .loop path { fill:none; stroke:var(--line); stroke-width:1.2; transition:stroke .4s var(--ease); }
-  #rail.loop-on .loop path { stroke:var(--accent); }
   .stage-note { text-align:center; font-size:12px; color:var(--faint); margin-top:28px; min-height:15px; font-family:var(--mono); letter-spacing:.02em; }
 
   /* ---- panels / layout ---- */
@@ -269,7 +265,7 @@
 <div class="wrap">
 
   <header class="topbar">
-    <div class="brand">Orthogonal Search Harness</div>
+    <div class="brand">Parallax</div>
     <div class="statusline" id="badges"></div>
   </header>
 
@@ -300,7 +296,7 @@
 
     <section class="panel hero reveal">
       <div class="phead">
-        <span class="eyebrow">Results in embedding space</span>
+        <span class="eyebrow">Retrieved corpus in 3D</span>
         <span class="pmeta" id="cstlMeta"></span>
       </div>
       <div id="constellation">
@@ -413,9 +409,8 @@ const STAGE_NOTE = {
   persist:'writing to ClickHouse', evaluate:'computing metrics in SQL', synthesize:'clustering viewpoints', done:'complete'
 };
 function buildRail() {
-  const loop = `<div class="loop"><svg viewBox="0 0 46 18"><path d="M6 14 C6 2, 40 2, 40 14" /><path d="M40 14 l-4 -4 M40 14 l4 -4" /></svg></div>`;
   $('rail').insertAdjacentHTML('afterbegin',
-    `<div class="rail-track">${loop}${RAIL.map(s=>`<div class="node"><span class="dot"></span><span class="nlabel">${s}</span></div>`).join('')}</div>`);
+    `<div class="rail-track">${RAIL.map(s=>`<div class="node"><span class="dot"></span><span class="nlabel">${s}</span></div>`).join('')}</div>`);
 }
 function setRail(stage) {
   const idx = STAGE_INDEX[stage] ?? -1;
@@ -423,7 +418,6 @@ function setRail(stage) {
     n.classList.toggle('done', i < idx);
     n.classList.toggle('active', i === idx);
   });
-  $('rail').classList.toggle('loop-on', stage==='generator' || stage==='critic');
   const pct = idx < 0 ? 0 : idx >= RAIL.length ? 100 : (idx/(RAIL.length-1))*100;
   $('rail').querySelector('.rail-track').style.setProperty('--fill', pct + '%');
   $('stageNote').textContent = STAGE_NOTE[stage] || '';
@@ -628,20 +622,17 @@ function drawSynthesis(syn) {
   $('narrative').textContent = syn.narrative || '';
 }
 
-// ---- 3D epsilon-ball constellation (hero) ----
+// ---- 3D PCA scatter of retrieved documents (hero) ----
 const CSTL = (function(){
-  const ROLE = {
-    lens:    { name:'lens',    color:new THREE.Color('#5b9bd5') },
-    affirm_frame: { name:'affirm', color:new THREE.Color('#c9a76a') },
-    counter_frame:{ name:'counter', color:new THREE.Color('#9a8cc4') },
-  };
+  const CLUSTER_COLORS = ['#5b9bd5','#56c2b8','#9a8cc4','#c9a76a','#7f8aa6'];
+  const BASE_COL = new THREE.Color('#36405a');
   let renderer, scene, camera, group, raycaster;
-  let coreGroup, glowGroup, edges;
+  let coreGroup, glowGroup;
   let pickables = [];
   let glowTex, coreGeo;
   let pointer = new THREE.Vector2(-2,-2), hovering = null;
   let dragging=false, lastX=0, lastY=0, autoRot=true, resumeT=0;
-  let rotX=0.35, rotY=0.2;
+  let rotX=0.3, rotY=0.15;
   let ready=false, started=false;
 
   function glowTexture(){
@@ -653,7 +644,6 @@ const CSTL = (function(){
     const t=new THREE.Texture(c); t.needsUpdate=true; return t;
   }
 
-
   function init(){
     const el=$('constellation'); const w=el.clientWidth, h=el.clientHeight;
     if(!w||!h) return false;
@@ -663,13 +653,13 @@ const CSTL = (function(){
     el.insertBefore(renderer.domElement, el.firstChild);
     scene=new THREE.Scene();
     camera=new THREE.PerspectiveCamera(45, w/h, 0.1, 100);
-    camera.position.set(0,0,4.3);
+    camera.position.set(0,0,4.8);
     group=new THREE.Group(); scene.add(group);
     raycaster=new THREE.Raycaster();
     glowTex=glowTexture();
-    coreGeo=new THREE.SphereGeometry(0.038, 16, 16);
-
-    coreGroup=new THREE.Group(); glowGroup=new THREE.Group(); group.add(coreGroup); group.add(glowGroup);
+    coreGeo=new THREE.SphereGeometry(0.032, 14, 14);
+    coreGroup=new THREE.Group(); glowGroup=new THREE.Group();
+    group.add(coreGroup); group.add(glowGroup);
 
     const cv=renderer.domElement;
     cv.style.cursor='grab';
@@ -701,71 +691,61 @@ const CSTL = (function(){
 
   function clearNodes(){
     [coreGroup, glowGroup].forEach(g=>{ while(g.children.length){ const c=g.children.pop(); if(c.material) c.material.dispose(); g.remove(c); } });
-    if(edges){ group.remove(edges); edges.geometry.dispose(); edges.material.dispose(); edges=null; }
     pickables=[]; hovering=null; $('cstlTip').style.opacity=0;
   }
 
-  function positions(queries, dist, eps){
-    const N=queries.length, ds=queries.map(q=>dist[q] ?? 0);
-    const dmin=Math.min(...ds), dmax=Math.max(...ds), ga=Math.PI*(3-Math.sqrt(5));
-    const k=1.4/(eps>0?eps:1);
-    return queries.map((q,i)=>{
-      const y=1-2*(i+0.5)/N, rxy=Math.sqrt(Math.max(0,1-y*y)), th=ga*i;
-      const dir=new THREE.Vector3(Math.cos(th)*rxy, y, Math.sin(th)*rxy);
-      const frac=dmax>dmin ? (ds[i]-dmin)/(dmax-dmin) : 0.5;
-      const r=(eps>0?eps:1)*(0.34+0.6*frac)*k;     // fill the volume, not a shell
-      return { q, d:ds[i], pos:dir.multiplyScalar(r) };
-    });
-  }
+  // hash a string to a stable float in [-1,1] for the z axis
+  function hashZ(s){ let h=0; for(let i=0;i<s.length;i++) h=((h<<5)-h+s.charCodeAt(i))|0; return ((h&0x7fffffff)%2000-1000)/1000; }
 
   function populate(s){
-    if(!ready && !init()) { return; }
+    if(!ready && !init()) return;
     clearNodes();
-    const queries=s.approved_queries||[]; if(!queries.length) return;
-    const qa=s.query_axes||{}, qd=s.query_distances||{}, eps=Number(s.epsilon_used)||1;
-    const P=positions(queries, qd, eps);
+    const pts = s.scatter || [];
+    if(!pts.length) { $('cstlMeta').textContent=''; $('cstlLegend').innerHTML=''; return; }
 
-    P.forEach(p=>{
-      const role=ROLE[qa[p.q]] || ROLE.lens;
-      const core=new THREE.Mesh(coreGeo, new THREE.MeshBasicMaterial({color:role.color}));
-      core.position.copy(p.pos);
-      core.userData={ q:p.q, d:p.d, role:role.name, base:1 };
+    // normalize x,y into [-1,1] and generate z from a hash of domain+title
+    const xs=pts.map(p=>p.x), ys=pts.map(p=>p.y);
+    const xmin=Math.min(...xs), xmax=Math.max(...xs), ymin=Math.min(...ys), ymax=Math.max(...ys);
+    const xr=xmax-xmin||1, yr=ymax-ymin||1;
+    const scale=1.5;
+
+    const clusters = new Set();
+    pts.forEach((p,i)=>{
+      const nx=((p.x-xmin)/xr*2-1)*scale, ny=((p.y-ymin)/yr*2-1)*scale;
+      const nz=hashZ((p.domain||'')+(p.title||'')+i)*scale*0.7;
+      const isBase = p.group==='baseline';
+      const cIdx = isBase ? -1 : (p.cluster>=0 ? p.cluster : 0);
+      const col = isBase ? BASE_COL : new THREE.Color(CLUSTER_COLORS[cIdx % CLUSTER_COLORS.length]);
+      if(!isBase) clusters.add(cIdx);
+
+      const core=new THREE.Mesh(coreGeo, new THREE.MeshBasicMaterial({color:col}));
+      core.position.set(nx, ny, nz);
+      core.userData={ title:p.title||'', domain:p.domain||'', group:p.group, cluster:cIdx };
       coreGroup.add(core); pickables.push(core);
-      const glow=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex, color:role.color, transparent:true,
-        opacity:0.55, depthWrite:false, blending:THREE.AdditiveBlending}));
-      glow.scale.setScalar(0.34); glow.position.copy(p.pos); glow.userData.core=core; glowGroup.add(glow);
+
+      const glowOp = isBase ? 0.2 : 0.45;
+      const glowSz = isBase ? 0.18 : 0.28;
+      const glow=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex, color:col, transparent:true,
+        opacity:glowOp, depthWrite:false, blending:THREE.AdditiveBlending}));
+      glow.scale.setScalar(glowSz); glow.position.set(nx, ny, nz); glowGroup.add(glow);
     });
 
-    // edges: all pairs, brightness by spread (additive, subtle)
-    const verts=[], cols=[], maxd=2*1.4, base=new THREE.Color('#5b9bd5');
-    for(let i=0;i<P.length;i++) for(let j=i+1;j<P.length;j++){
-      const a=P[i].pos, b=P[j].pos, dd=a.distanceTo(b), t=Math.min(1,dd/maxd);
-      const inten=0.05+0.32*t;
-      verts.push(a.x,a.y,a.z, b.x,b.y,b.z);
-      for(let k=0;k<2;k++) cols.push(base.r*inten, base.g*inten, base.b*inten);
-    }
-    const eg=new THREE.BufferGeometry();
-    eg.setAttribute('position', new THREE.Float32BufferAttribute(verts,3));
-    eg.setAttribute('color', new THREE.Float32BufferAttribute(cols,3));
-    edges=new THREE.LineSegments(eg, new THREE.LineBasicMaterial({vertexColors:true, transparent:true, blending:THREE.AdditiveBlending, depthWrite:false}));
-    group.add(edges);
-
-    // legend (only roles present)
-    const present=[...new Set(P.map(p=>(ROLE[qa[p.q]]||ROLE.lens).name))];
-    const swatch={lens:'#5b9bd5', affirm:'#c9a76a', counter:'#9a8cc4'};
-    $('cstlLegend').innerHTML=present.map(n=>`<span><i style="background:${swatch[n]}"></i>${n}</span>`).join('');
-    $('cstlMeta').textContent=`radius ${Number(eps).toFixed(2)} · ${queries.length} nodes`;
+    // legend
+    const items = [...clusters].sort().map(c =>
+      `<span><i style="background:${CLUSTER_COLORS[c % CLUSTER_COLORS.length]}"></i>viewpoint ${c+1}</span>`);
+    items.push(`<span><i style="background:#36405a"></i>baseline</span>`);
+    $('cstlLegend').innerHTML = items.join('');
+    $('cstlMeta').textContent = `${pts.length} documents`;
     onResize();
   }
 
   function animate(){
     requestAnimationFrame(animate);
     if(!renderer) return;
-    if(autoRot && !dragging) rotY+=0.0016;
+    if(autoRot && !dragging) rotY+=0.0014;
     if(!autoRot && !dragging && performance.now()>resumeT) autoRot=true;
     group.rotation.y=rotY; group.rotation.x=rotX;
 
-    // hover pick
     let hit=null;
     if(pickables.length && pointer.x>-1.5){
       raycaster.setFromCamera(pointer, camera);
@@ -777,8 +757,10 @@ const CSTL = (function(){
       hovering=hit;
       const tip=$('cstlTip');
       if(hit){
-        hit.scale.setScalar(1.55);
-        tip.innerHTML=`${esc(hit.userData.q)}<span class="d">distance ${Number(hit.userData.d).toFixed(4)} · <span class="role">${hit.userData.role}</span></span>`;
+        hit.scale.setScalar(1.6);
+        const ud=hit.userData;
+        const label = ud.group==='baseline' ? 'baseline' : 'viewpoint '+(ud.cluster+1);
+        tip.innerHTML=`${esc(ud.title)}<span class="d">${esc(ud.domain)} · <span class="role">${label}</span></span>`;
         tip.style.opacity=1;
       } else tip.style.opacity=0;
     }
@@ -793,8 +775,6 @@ const CSTL = (function(){
 
   return { populate };
 })();
-
-window.addEventListener('load', ()=>{ try { CSTL.populate({approved_queries:[]}); } catch(e){} });
 </script>
 </body>
 </html>
