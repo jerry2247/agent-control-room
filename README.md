@@ -2,7 +2,7 @@
 
 Parallax turns one loaded search prompt into a balanced, multi-perspective research corpus. It detects the premise hidden inside a question, rewrites the search space around the neutral topic, fans out across opposing angles, and measures whether the final corpus is actually broader than a normal single-query search.
 
-Built by Jerry, Jack, Adam, and Ritwin for a hackathon.
+Built by Jerry, Jack, Adam, and Ritwin for AWS + Tokens& Harness Engineering Hack.
 
 We used the sponsor stack where it naturally fit the product: TrueFoundry for optional LLM gateway calls, Composio for live search execution, Airbyte for the durable ETL path, ClickHouse for OLAP metrics, and Render for deployment. The project also runs without keys for local demos and CI, and `/api/health` reports the active backend choices.
 
