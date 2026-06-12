@@ -4,111 +4,350 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Orthogonal Search Harness</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <style>
   :root {
-    --bg:#0b0e14; --panel:#131826; --panel2:#1a2133; --line:#232c44;
-    --text:#e8ecf6; --dim:#8b94ad; --accent:#5b8cff; --green:#3ecf8e;
-    --amber:#f5b83d; --red:#ff6b6b; --purple:#a78bfa;
+    --bg:#0a0d14;
+    --surface:#10141e;
+    --surface-2:#151a26;
+    --inset:#0c1018;
+    --line:#212838;
+    --line-soft:#191f2c;
+    --text:#e7eaf3;
+    --dim:#9aa3b8;
+    --faint:#646e87;
+    --accent:#5b9bd5;
+    --accent-deep:#4a86bd;
+    --accent-soft:rgba(91,155,213,.14);
+    --teal:#56c2b8;
+    --amber2:#c9a76a;
+    --violet:#9a8cc4;
+    --neutral-mark:#3c465e;
+    --radius:12px;
+    --ease:cubic-bezier(.16,1,.3,1);
+    --maxw:1180px;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+    --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
   }
-  * { box-sizing:border-box; margin:0; }
-  body { background:var(--bg); color:var(--text); font:14px/1.5 "SF Mono",Menlo,Consolas,monospace; padding:24px; }
-  h1 { font-size:20px; letter-spacing:.4px; }
-  h1 span { color:var(--accent); }
-  .tagline { color:var(--dim); margin:4px 0 18px; font-size:12.5px; }
-  .badges { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px; }
-  .badge { background:var(--panel2); border:1px solid var(--line); border-radius:20px; padding:3px 11px; font-size:11.5px; color:var(--dim); }
-  .badge b { color:var(--green); font-weight:600; }
-  .row { display:flex; gap:14px; flex-wrap:wrap; }
-  .panel { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:14px; }
-  .controls { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-  input[type=text] { flex:1; min-width:260px; background:var(--panel2); border:1px solid var(--line); border-radius:8px; color:var(--text); padding:10px 12px; font:inherit; }
-  input[type=range] { accent-color:var(--accent); width:130px; }
-  select { background:var(--panel2); border:1px solid var(--line); color:var(--text); border-radius:8px; padding:9px; font:inherit; }
-  button { background:var(--accent); border:0; border-radius:8px; color:#fff; padding:10px 18px; font:inherit; font-weight:700; cursor:pointer; }
-  button:disabled { opacity:.45; cursor:wait; }
-  label.small { color:var(--dim); font-size:12px; display:flex; align-items:center; gap:6px; }
-  .stage { color:var(--amber); font-size:12.5px; min-height:18px; margin-top:10px; }
-  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:12px; }
-  .card { background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:13px 15px; }
-  .card .k { color:var(--dim); font-size:11px; text-transform:uppercase; letter-spacing:.7px; }
-  .card .v { font-size:26px; font-weight:700; margin:4px 0 2px; }
-  .card .d { font-size:11.5px; color:var(--dim); }
-  .lift { color:var(--green); font-weight:700; }
-  .neg { color:var(--red); }
-  table { width:100%; border-collapse:collapse; font-size:12.5px; }
-  th, td { text-align:left; padding:7px 9px; border-bottom:1px solid var(--line); vertical-align:top; }
-  th { color:var(--dim); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.6px; }
-  .chip { display:inline-block; border-radius:5px; padding:1px 8px; font-size:11px; font-weight:700; }
-  .ok { background:#10301f; color:var(--green); }
-  .bad { background:#3a1620; color:var(--red); }
-  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-  @media (max-width:900px){ .grid2 { grid-template-columns:1fr; } }
-  .charts canvas { max-height:260px; }
-  h3 { font-size:13px; color:var(--dim); text-transform:uppercase; letter-spacing:.8px; margin-bottom:10px; }
-  .conflict { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-  .view { background:var(--panel2); border-left:3px solid var(--purple); border-radius:8px; padding:12px; font-size:12.5px; }
-  .view.b { border-left-color:var(--amber); }
-  .view .terms { color:var(--purple); font-weight:700; font-size:11.5px; text-transform:uppercase; letter-spacing:.5px; }
-  .view.b .terms { color:var(--amber); }
-  .view .src { color:var(--dim); font-size:11px; margin-top:8px; word-break:break-all; }
-  details { margin-top:10px; } summary { cursor:pointer; color:var(--dim); font-size:12px; }
-  pre { background:#0a0d14; border:1px solid var(--line); border-radius:8px; padding:12px; overflow-x:auto; font-size:11px; color:#9fd0ff; margin-top:8px; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html { -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; }
+  body {
+    background:var(--bg); color:var(--text);
+    font:400 14.5px/1.6 var(--sans);
+    padding:0 26px 110px;
+    background-image:radial-gradient(1200px 600px at 70% -10%, rgba(91,155,213,.05), transparent 60%);
+  }
+  .wrap { max-width:var(--maxw); margin:0 auto; }
+
+  .eyebrow { font-size:11px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:var(--faint); }
+  .mono { font-family:var(--mono); }
+
+  /* ---- top bar ---- */
+  .topbar {
+    display:flex; align-items:center; justify-content:space-between; gap:20px;
+    padding:22px 2px 20px; border-bottom:1px solid var(--line); flex-wrap:wrap;
+  }
+  .brand { font-size:15px; font-weight:600; letter-spacing:-.01em; }
+  .statusline { display:flex; flex-wrap:wrap; gap:5px 16px; font-size:11.5px; color:var(--faint); font-family:var(--mono); }
+  .statusline .item b { color:var(--dim); font-weight:500; }
+
+  /* ---- prompt ---- */
+  .prompt { margin:26px 0 8px; }
+  .prompt-field {
+    display:flex; align-items:center; gap:10px;
+    background:var(--surface-2); border:1px solid var(--line); border-radius:13px;
+    padding:6px 6px 6px 16px;
+    transition:border-color .35s var(--ease), box-shadow .35s var(--ease);
+  }
+  .prompt-field:focus-within {
+    border-color:rgba(91,155,213,.55);
+    box-shadow:0 0 0 3px rgba(91,155,213,.10);
+  }
+  .prompt-field .glyph { color:var(--faint); font-family:var(--mono); font-size:15px; flex:none; }
+  #query {
+    flex:1; min-width:0; background:transparent; border:0; outline:0;
+    color:var(--text); font:400 16px/1.5 var(--sans); padding:11px 0;
+  }
+  #query::placeholder { color:var(--faint); }
+  #go {
+    flex:none; background:var(--accent); border:0; border-radius:9px;
+    color:#08111c; font:600 14px/1 var(--sans); padding:12px 20px; cursor:pointer;
+    transition:background .25s var(--ease), opacity .25s var(--ease);
+  }
+  #go:hover { background:var(--accent-deep); }
+  #go:disabled { opacity:.5; cursor:wait; }
+  .prompt-meta {
+    display:flex; align-items:center; gap:24px; flex-wrap:wrap;
+    margin-top:14px; padding:0 2px; font-size:13px; color:var(--dim);
+  }
+  .prompt-meta label { display:flex; align-items:center; gap:8px; cursor:pointer; }
+  .prompt-meta select {
+    background:var(--surface-2); border:1px solid var(--line); border-radius:7px;
+    color:var(--text); font:inherit; padding:5px 8px; cursor:pointer;
+  }
+  .prompt-meta input[type=range] { accent-color:var(--accent); width:120px; }
+  .prompt-meta input[type=checkbox] { accent-color:var(--accent); width:15px; height:15px; }
+  #epsWrap { transition:opacity .3s var(--ease); }
+  #epsVal { font-family:var(--mono); font-size:12.5px; color:var(--faint); }
+  .err { color:#d98c7a; font-size:13px; line-height:1.55; white-space:pre-wrap; margin-top:14px; }
+  .err:empty { display:none; }
+
+  /* ---- pipeline rail ---- */
+  #rail { margin:26px 0 4px; }
+  .rail-track { position:relative; display:flex; justify-content:space-between; padding:20px 0 4px; }
+  .rail-track::before, .rail-track::after { content:""; position:absolute; top:26px; left:0; height:1px; }
+  .rail-track::before { width:100%; background:var(--line); }
+  .rail-track::after { width:var(--fill,0%); background:var(--accent); transition:width .7s var(--ease); }
+  .node { position:relative; z-index:1; display:flex; flex-direction:column; align-items:center; gap:10px; flex:1; }
+  .node .dot { width:9px; height:9px; border-radius:50%; background:var(--bg); border:1px solid var(--neutral-mark);
+    transition:background .4s var(--ease), border-color .4s var(--ease), transform .4s var(--ease); }
+  .node .nlabel { font-size:11px; letter-spacing:.04em; color:var(--faint); transition:color .4s var(--ease); }
+  .node.done .dot { background:var(--dim); border-color:var(--dim); }
+  .node.done .nlabel { color:var(--dim); }
+  .node.active .dot { background:var(--accent); border-color:var(--accent); transform:scale(1.3); animation:pulse 1.8s var(--ease) infinite; }
+  .node.active .nlabel { color:var(--text); }
+  @keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(91,155,213,.35);} 50%{box-shadow:0 0 0 7px rgba(91,155,213,0);} }
+  .loop { position:absolute; top:4px; left:20%; transform:translateX(-50%); width:46px; height:18px; pointer-events:none; }
+  .loop svg { width:100%; height:100%; overflow:visible; }
+  .loop path { fill:none; stroke:var(--line); stroke-width:1.2; transition:stroke .4s var(--ease); }
+  #rail.loop-on .loop path { stroke:var(--accent); }
+  .stage-note { text-align:center; font-size:12px; color:var(--faint); margin-top:13px; min-height:15px; font-family:var(--mono); letter-spacing:.02em; }
+
+  /* ---- panels / layout ---- */
+  main { margin-top:14px; }
+  .panel {
+    background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
+    padding:22px 24px; margin-bottom:20px;
+  }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  .grid2 > .panel { margin-bottom:0; }
+  .grid2.charts { margin-bottom:20px; }
+  @media (max-width:880px){ .grid2 { grid-template-columns:1fr; } }
+  .phead { display:flex; align-items:baseline; justify-content:space-between; gap:14px; margin-bottom:18px; }
+  .phead .hint { font-size:12.5px; color:var(--faint); margin-top:5px; font-weight:400; letter-spacing:0; text-transform:none; }
+  .pmeta { font-family:var(--mono); font-size:12px; color:var(--dim); }
+  .pending { color:var(--faint); font-size:13.5px; }
+  body.has-data .pending { display:none; }
+
+  /* ---- constellation hero ---- */
+  .hero { padding:0; overflow:hidden; }
+  .hero .phead { padding:22px 24px 0; margin-bottom:0; }
+  #constellation { position:relative; width:100%; height:460px; }
+  @media (max-width:880px){ #constellation { height:360px; } }
+  #constellation canvas { display:block; }
+  .cstl-tip {
+    position:absolute; pointer-events:none; opacity:0; transform:translate(-50%,-130%);
+    background:rgba(10,13,20,.94); border:1px solid var(--line); border-radius:8px;
+    padding:8px 11px; font-size:12px; line-height:1.5; max-width:280px; color:var(--text);
+    transition:opacity .15s ease; z-index:3;
+  }
+  .cstl-tip .d { font-family:var(--mono); color:var(--dim); display:block; margin-top:3px; font-size:11px; }
+  .cstl-tip .role { color:var(--accent); }
+  .cstl-legend {
+    position:absolute; left:24px; bottom:18px; display:flex; gap:16px; flex-wrap:wrap;
+    font-size:11.5px; color:var(--dim); z-index:2;
+  }
+  .cstl-legend span { display:inline-flex; align-items:center; gap:7px; }
+  .cstl-legend i { width:8px; height:8px; border-radius:50%; display:inline-block; }
+
+  /* ---- frame analysis ---- */
+  .band-line { font-size:18px; line-height:1.5; display:flex; flex-wrap:wrap; align-items:baseline; gap:11px; }
+  .band-line .kept { color:var(--text); }
+  .band-line .stripped { color:var(--faint); }
+  .band-line .relate { font-size:12.5px; color:var(--faint); letter-spacing:.02em; }
+  .band-line .neutral { color:var(--accent); font-weight:500; }
+  .band-note { font-size:13px; color:var(--dim); margin-top:13px; line-height:1.6; }
+
+  /* ---- frame balance ---- */
+  .gauge-verdict { font-size:16px; line-height:1.5; }
+  .gauge-verdict b { color:var(--accent); font-weight:600; }
+  .scale { position:relative; height:50px; margin:30px 0 8px; }
+  .scale-track { position:absolute; top:22px; left:0; right:0; height:2px; background:var(--line); border-radius:2px; }
+  .scale-band { position:absolute; top:16px; height:14px; border-radius:7px; background:rgba(255,255,255,.06); }
+  .scale-zero { position:absolute; top:12px; width:1px; height:22px; background:var(--line); }
+  .marker { position:absolute; top:23px; transform:translate(-50%,-50%); transition:left .9s var(--ease); }
+  .marker .pin { width:13px; height:13px; border-radius:50%; border:2.5px solid var(--surface); }
+  .marker.harness .pin { background:var(--accent); box-shadow:0 0 10px rgba(91,155,213,.5); }
+  .marker.baseline .pin { background:var(--neutral-mark); }
+  .marker .tag { position:absolute; left:50%; transform:translateX(-50%); white-space:nowrap; font-size:10.5px; letter-spacing:.04em; }
+  .marker.harness .tag { top:-21px; color:var(--accent); font-weight:600; }
+  .marker.baseline .tag { top:17px; color:var(--faint); }
+  .scale-ends { display:flex; justify-content:space-between; font-family:var(--mono); font-size:11px; color:var(--faint); margin-top:2px; }
+  .scale-ends .mid { color:var(--dim); }
+  .gauge-readout { font-family:var(--mono); font-size:12px; color:var(--faint); margin-top:16px; }
+  .gauge-readout b { color:var(--dim); font-weight:500; }
+
+  /* ---- metrics ---- */
+  .metric-row { display:grid; grid-template-columns:repeat(4,1fr); gap:28px; }
+  @media (max-width:760px){ .metric-row { grid-template-columns:repeat(2,1fr); gap:26px 22px; } }
+  .metric .m-label { font-size:12px; color:var(--faint); }
+  .metric .m-value { font-family:var(--mono); font-size:30px; font-weight:600; letter-spacing:-.02em; margin:9px 0 5px; color:var(--text); }
+  .metric .m-sub { font-family:var(--mono); font-size:12px; color:var(--dim); }
+  .metric .lift { color:var(--accent); margin-left:7px; }
+  .metric .lift.down { color:var(--faint); }
+  .corpus-line { font-size:13px; color:var(--faint); margin-top:24px; font-family:var(--mono); }
+
+  /* ---- charts ---- */
+  .chart-box canvas { max-height:240px; }
+
+  /* ---- conflict viewpoints ---- */
+  .conflict { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+  @media (max-width:760px){ .conflict { grid-template-columns:1fr; gap:20px; } }
+  .view .terms { font-size:11px; letter-spacing:.05em; text-transform:uppercase; color:var(--dim); margin-bottom:9px; display:flex; align-items:center; gap:8px; }
+  .view .terms::before { content:""; width:7px; height:7px; border-radius:50%; background:var(--neutral-mark); flex:none; }
+  .view.a .terms::before { background:var(--accent); }
+  .view.b .terms::before { background:var(--teal); }
+  .view p { font-size:13.5px; line-height:1.6; color:var(--text); }
+  .view .src { font-size:11.5px; color:var(--faint); margin-top:10px; word-break:break-word; font-family:var(--mono); }
+  .consensus { font-size:13px; color:var(--dim); margin-top:22px; line-height:1.6; }
+  .consensus b { color:var(--text); font-weight:600; }
+  .narrative { font-size:13.5px; color:var(--text); margin-top:14px; line-height:1.7; }
+
+  /* ---- tables ---- */
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { text-align:left; font-size:10.5px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--faint); padding:0 14px 11px; border-bottom:1px solid var(--line); }
+  th.num, td.num { text-align:right; font-family:var(--mono); }
+  td { padding:12px 14px; border-bottom:1px solid var(--line-soft); vertical-align:top; line-height:1.5; }
+  tr:last-child td { border-bottom:0; }
+  td.q { font-family:var(--mono); font-size:12px; color:var(--text); }
+  .status { font-size:12px; color:var(--dim); display:inline-flex; align-items:center; gap:7px; }
+  .status::before { content:""; width:6px; height:6px; border-radius:50%; flex:none; }
+  .status.approved::before { background:var(--accent); }
+  .status.rejected::before { background:var(--neutral-mark); }
+  .status.rejected { color:var(--faint); }
+  .qcell { display:flex; flex-direction:column; align-items:flex-start; gap:5px; }
+  .axis { font-size:10px; letter-spacing:.05em; text-transform:uppercase; white-space:nowrap; padding-left:13px; }
+  .axis.affirm { color:var(--amber2); }
+  .axis.counter { color:var(--violet); }
+  td.reason { color:var(--faint); font-size:12px; }
+  .grp { font-size:11.5px; color:var(--dim); }
+  .grp.baseline { color:var(--faint); }
   a { color:var(--accent); text-decoration:none; }
-  .consensus { font-size:12.5px; color:var(--dim); margin-top:10px; }
-  .consensus b { color:var(--green); }
-  .err { color:var(--red); font-size:12px; white-space:pre-wrap; }
+  a:hover { text-decoration:underline; text-underline-offset:2px; }
+  .eco { color:var(--faint); font-size:12px; }
+
+  /* ---- SQL ---- */
+  .sql-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  #copySql { background:transparent; border:1px solid var(--line); border-radius:8px; color:var(--dim);
+    font:500 12px var(--sans); padding:7px 13px; cursor:pointer; transition:border-color .25s var(--ease), color .25s var(--ease); }
+  #copySql:hover { border-color:var(--accent); color:var(--text); }
+  pre.sql { background:var(--inset); border:1px solid var(--line-soft); border-radius:var(--radius);
+    padding:18px 20px; overflow-x:auto; max-height:300px; font-family:var(--mono); font-size:11.5px; line-height:1.7; color:var(--dim); }
+
+  /* reveal */
+  .reveal { opacity:0; transform:translateY(8px); }
+  .reveal.in { opacity:1; transform:none; transition:opacity .6s var(--ease), transform .6s var(--ease); }
   .hidden { display:none; }
 </style>
 </head>
 <body>
-<h1>ORTHOGONAL <span>SEARCH HARNESS</span></h1>
-<div class="tagline">one biased query &rarr; presupposition neutralized &rarr; N orthogonal + dialectic queries &rarr; verified multi-perspective corpus, with diversity and frame balance proven live in ClickHouse SQL</div>
-<div class="badges" id="badges"></div>
+<div class="wrap">
 
-<div class="panel">
-  <div class="controls">
-    <input id="query" type="text" placeholder='Try: "is nuclear energy safe"' value="is nuclear energy safe">
-    <label class="small">N
-      <select id="nq"><option>3</option><option>4</option><option selected>5</option><option>6</option><option>7</option><option>8</option></select>
-    </label>
-    <label class="small"><input type="checkbox" id="autoEps" checked> &epsilon; auto</label>
-    <label class="small" id="epsWrap" style="opacity:.4">&epsilon; <input type="range" id="eps" min="0.4" max="1.5" step="0.05" value="1.0" disabled> <span id="epsVal">1.00</span></label>
-    <button id="go">RUN HARNESS</button>
-  </div>
-  <div class="stage" id="stage"></div>
-  <div class="err" id="errors"></div>
-</div>
+  <header class="topbar">
+    <div class="brand">Orthogonal Search Harness</div>
+    <div class="statusline" id="badges"></div>
+  </header>
 
-<div id="results" class="hidden">
-  <div class="panel">
-    <h3>Diversity metrics: harness vs single-query baseline (computed in ClickHouse)</h3>
-    <div class="cards" id="cards"></div>
-    <details><summary>View the SQL executed live in the OLAP store</summary><pre id="sql"></pre></details>
-  </div>
-
-  <div class="grid2 charts">
-    <div class="panel"><h3>Source domain distribution</h3><canvas id="domainChart"></canvas></div>
-    <div class="panel"><h3>Embedding space (PCA): corpus dispersion</h3><canvas id="scatterChart"></canvas></div>
-    <div class="panel"><h3>Diversity vs &epsilon; (auto-tuner sweep)</h3><canvas id="epsChart"></canvas></div>
-    <div class="panel">
-      <h3>Conflicting viewpoints (most distant clusters)</h3>
-      <div class="conflict" id="conflict"></div>
-      <div class="consensus" id="consensus"></div>
-      <div id="narrative" class="consensus"></div>
+  <div class="prompt">
+    <div class="prompt-field">
+      <span class="glyph">&gt;</span>
+      <input id="query" type="text" placeholder='Ask something loaded, like "is nuclear energy safe"' value="is nuclear energy safe">
+      <button id="go">Run harness</button>
     </div>
+    <div class="prompt-meta">
+      <label>Queries
+        <select id="nq"><option>3</option><option>4</option><option selected>5</option><option>6</option><option>7</option><option>8</option></select>
+      </label>
+      <label><input type="checkbox" id="autoEps" checked> Auto radius</label>
+      <label id="epsWrap" style="opacity:.4">Radius
+        <input type="range" id="eps" min="0.4" max="1.5" step="0.05" value="1.0" disabled>
+        <span id="epsVal">1.00</span>
+      </label>
+    </div>
+    <div class="err" id="errors"></div>
   </div>
 
-  <div class="panel">
-    <h3>Generated orthogonal queries (&epsilon;<span id="epsUsed"></span>)</h3>
-    <div class="consensus" id="frameInfo" style="margin:0 0 10px"></div>
-    <table id="queries"><thead><tr><th>status</th><th>query</th><th>&Vert;x&minus;c&Vert;&#8322;</th><th>reason</th></tr></thead><tbody></tbody></table>
+  <div id="rail">
+    <div class="stage-note" id="stageNote"></div>
   </div>
 
-  <div class="panel">
-    <h3>Retrieved sources</h3>
-    <table id="sources"><thead><tr><th>group</th><th>domain</th><th>ecosystem</th><th>title</th><th>via query</th></tr></thead><tbody></tbody></table>
-  </div>
+  <main>
+
+    <section class="panel hero reveal">
+      <div class="phead">
+        <span class="eyebrow">Results in embedding space</span>
+        <span class="pmeta" id="cstlMeta"></span>
+      </div>
+      <div id="constellation">
+        <div class="cstl-tip" id="cstlTip"></div>
+        <div class="cstl-legend" id="cstlLegend"></div>
+      </div>
+    </section>
+
+    <div class="grid2" style="margin-bottom:20px">
+      <section class="panel reveal">
+        <div class="phead"><span class="eyebrow">Frame analysis</span></div>
+        <div id="frameBand"></div>
+      </section>
+      <section class="panel reveal">
+        <div class="phead"><span class="eyebrow">Frame balance</span></div>
+        <div id="balanceWrap"></div>
+      </section>
+    </div>
+
+    <section class="panel reveal">
+      <div class="phead"><span class="eyebrow">Diversity versus a single-query baseline</span></div>
+      <div id="cards"></div>
+      <div class="corpus-line" id="corpusLine"></div>
+    </section>
+
+    <div class="grid2 charts">
+      <section class="panel reveal chart-box">
+        <div class="phead"><span class="eyebrow">Source domain distribution</span></div>
+        <canvas id="domainChart"></canvas>
+      </section>
+      <section class="panel reveal chart-box">
+        <div class="phead"><span class="eyebrow">PCA projection</span></div>
+        <canvas id="scatterChart"></canvas>
+      </section>
+      <section class="panel reveal chart-box">
+        <div class="phead"><span class="eyebrow">Diversity versus radius</span></div>
+        <canvas id="epsChart"></canvas>
+      </section>
+      <section class="panel reveal">
+        <div class="phead"><span class="eyebrow">Most distant viewpoints</span></div>
+        <div class="conflict" id="conflict"></div>
+        <div class="consensus" id="consensus"></div>
+        <div class="narrative" id="narrative"></div>
+      </section>
+    </div>
+
+    <section class="panel reveal">
+      <div class="phead"><span class="eyebrow">Generated queries</span></div>
+      <table id="queries">
+        <thead><tr><th style="width:130px">Status</th><th>Query</th><th class="num" style="width:110px">Distance</th><th style="width:30%">Reason</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section class="panel reveal">
+      <div class="phead"><span class="eyebrow">Retrieved sources</span></div>
+      <table id="sources">
+        <thead><tr><th style="width:90px">Group</th><th>Domain</th><th>Ecosystem</th><th>Title</th><th>Via query</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section class="panel reveal">
+      <div class="sql-head"><span class="eyebrow">SQL executed in ClickHouse</span><button id="copySql">Copy</button></div>
+      <pre class="sql" id="sql"></pre>
+    </section>
+
+  </main>
 </div>
 
 <script>
@@ -122,14 +361,12 @@ const SERVE_HINT = 'API server not reachable from this page.\n' +
   'If you are already on localhost, check the uvicorn terminal is running without errors ' +
   'and that the port in the URL matches.';
 
-if (location.protocol === 'file:') {
-  $('errors').textContent = SERVE_HINT;
-}
+if (location.protocol === 'file:') $('errors').textContent = SERVE_HINT;
 
 fetch('/api/health').then(r=>r.json()).then(h=>{
   $('badges').innerHTML = Object.entries(h.backends)
-    .map(([k,v])=>`<span class="badge">${k}: <b>${v}</b></span>`).join('')
-    + `<span class="badge">db engine: <b>${h.database_engine}</b></span>`;
+    .map(([k,v])=>`<span class="item">${k} <b>${v}</b></span>`).join('')
+    + `<span class="item">db <b>${h.database_engine}</b></span>`;
 }).catch(()=>{ $('errors').textContent = SERVE_HINT; });
 
 $('autoEps').onchange = e => {
@@ -137,12 +374,43 @@ $('autoEps').onchange = e => {
   $('epsWrap').style.opacity = e.target.checked ? .4 : 1;
 };
 $('eps').oninput = e => $('epsVal').textContent = Number(e.target.value).toFixed(2);
-
 $('go').onclick = run;
 $('query').addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
+$('copySql').onclick = () => {
+  navigator.clipboard.writeText($('sql').textContent).then(() => {
+    $('copySql').textContent = 'Copied';
+    setTimeout(() => $('copySql').textContent = 'Copy', 1600);
+  }).catch(()=>{});
+};
+
+// ---- pipeline rail ----
+const RAIL = ['Ingress','Variance','Search','ETL','Metrics','Synthesis'];
+const STAGE_INDEX = {queued:-1, ingress:0, generator:1, critic:1, executor:2, etl:3, persist:3, evaluate:4, synthesize:5, done:6};
+const STAGE_NOTE = {
+  queued:'queued', ingress:'sanitizing input', generator:'generating orthogonal queries',
+  critic:'critic auditing queries', executor:'searching the live web', etl:'normalizing into chunks',
+  persist:'writing to ClickHouse', evaluate:'computing metrics in SQL', synthesize:'clustering viewpoints', done:'complete'
+};
+function buildRail() {
+  const loop = `<div class="loop"><svg viewBox="0 0 46 18"><path d="M6 14 C6 2, 40 2, 40 14" /><path d="M40 14 l-4 -4 M40 14 l4 -4" /></svg></div>`;
+  $('rail').insertAdjacentHTML('afterbegin',
+    `<div class="rail-track">${loop}${RAIL.map(s=>`<div class="node"><span class="dot"></span><span class="nlabel">${s}</span></div>`).join('')}</div>`);
+}
+function setRail(stage) {
+  const idx = STAGE_INDEX[stage] ?? -1;
+  $('rail').querySelectorAll('.node').forEach((n,i)=>{
+    n.classList.toggle('done', i < idx);
+    n.classList.toggle('active', i === idx);
+  });
+  $('rail').classList.toggle('loop-on', stage==='generator' || stage==='critic');
+  const pct = idx < 0 ? 0 : idx >= RAIL.length ? 100 : (idx/(RAIL.length-1))*100;
+  $('rail').querySelector('.rail-track').style.setProperty('--fill', pct + '%');
+  $('stageNote').textContent = STAGE_NOTE[stage] || '';
+}
+buildRail();
 
 async function run() {
-  $('go').disabled = true; $('errors').textContent = ''; $('results').classList.add('hidden');
+  $('go').disabled = true; $('errors').textContent = ''; setRail('queued');
   const body = {
     query: $('query').value,
     n_queries: Number($('nq').value),
@@ -155,9 +423,8 @@ async function run() {
     const {session_id} = await resp.json();
     await poll(session_id);
   } catch (e) {
-    $('errors').textContent = String(e).includes('Failed to fetch')
-      ? SERVE_HINT : String(e);
-    $('stage').textContent = '';
+    $('errors').textContent = String(e).includes('Failed to fetch') ? SERVE_HINT : String(e);
+    $('stageNote').textContent = '';
   }
   $('go').disabled = false;
 }
@@ -165,99 +432,141 @@ async function run() {
 async function poll(sid) {
   for (let i = 0; i < 400; i++) {
     const s = await (await fetch('/api/session/' + sid)).json();
-    $('stage').textContent = s.status === 'running' ? `running &raquo; stage: ${s.stage}`.replace('&raquo;','»') : '';
-    if (s.status === 'completed') { render(s); return; }
+    if (s.status === 'running') setRail(s.stage);
+    if (s.status === 'completed') { setRail('done'); render(s); return; }
     if (s.status === 'failed') { $('errors').textContent = (s.error_logs||[]).join('\n') || 'pipeline failed'; return; }
     await new Promise(r => setTimeout(r, 700));
   }
   $('errors').textContent = 'timed out waiting for pipeline';
 }
 
-function card(title, h, b, fmt, liftPct) {
-  const lift = liftPct == null ? '' :
-    `<span class="lift ${liftPct < 0 ? 'neg' : ''}">${liftPct > 0 ? '+' : ''}${liftPct}%</span> vs baseline`;
-  return `<div class="card"><div class="k">${title}</div><div class="v">${fmt(h)}</div>
-          <div class="d">baseline ${fmt(b)} &middot; ${lift}</div></div>`;
+// ---- helpers ----
+const f2 = x => Number(x).toFixed(2);
+const f3 = x => Number(x).toFixed(3);
+const sgn = x => (x >= 0 ? '+' : '-') + Math.abs(Number(x)).toFixed(3);
+function esc(t){ const d=document.createElement('div'); d.textContent = t==null?'':t; return d.innerHTML; }
+function countUp(el, to, fmt, dur=900) {
+  const t0 = performance.now(), ease = t => 1 - Math.pow(1 - t, 4);
+  (function step(now){ const p=Math.min(1,(now-t0)/dur); el.textContent=fmt(to*ease(p)); if(p<1)requestAnimationFrame(step); })(performance.now());
 }
+function reveal(){ document.querySelectorAll('.reveal').forEach((el,i)=>{ if(!el.classList.contains('in')) setTimeout(()=>el.classList.add('in'), 40+i*70); }); }
 
+// ---- render ----
 function render(s) {
-  $('results').classList.remove('hidden');
-  $('stage').textContent = '';
+  document.body.classList.add('has-data');
   const m = s.metrics, H = m.harness, B = m.baseline, D = m.deltas;
-  const f2 = x => Number(x).toFixed(2), f3 = x => Number(x).toFixed(3);
-  let frameCard = '';
-  if (m.frame_balance) {
-    const fb = m.frame_balance, sgn = x => (x >= 0 ? '+' : '') + Number(x).toFixed(3);
-    const verdictTxt = {balanced:'BALANCED', leans_affirm:'still leans toward the frame',
-                        leans_counter:'leans against the frame'}[fb.verdict] || fb.verdict;
-    frameCard = `<div class="card" style="border-color:var(--purple)">
-      <div class="k">Frame balance (0 = unbiased)</div>
-      <div class="v" style="color:${fb.verdict==='balanced'?'var(--green)':'var(--amber)'}">${sgn(fb.harness)}</div>
-      <div class="d">plain search ${sgn(fb.baseline)} toward "${esc(fb.presupposition)}"
-      &middot; <span class="lift">${verdictTxt}</span>${fb.bias_reduction_pct != null
-        ? ` &middot; bias &minus;${fb.bias_reduction_pct}%` : ''}</div></div>`;
-  }
-  $('cards').innerHTML =
-    frameCard +
-    card('Semantic spread', H.semantic_spread, B.semantic_spread, f3, D.semantic_spread.lift_pct) +
-    card('Domain entropy (bits)', H.shannon_entropy_bits, B.shannon_entropy_bits, f2, D.shannon_entropy_bits.lift_pct) +
-    card('Ecosystem entropy (bits)', H.ecosystem_entropy_bits, B.ecosystem_entropy_bits, f2, D.ecosystem_entropy_bits.lift_pct) +
-    card('Unique domains', H.n_domains, B.n_domains, x=>x, D.n_domains.lift_pct) +
-    `<div class="card"><div class="k">Corpus</div><div class="v">${H.n_documents}</div>
-     <div class="d">docs / ${H.n_chunks} chunks &middot; normalized entropy ${f2(H.normalized_entropy)}</div></div>`;
-  $('sql').textContent = Object.values(H.sql || {}).join('\n');
 
-  // detected presupposition banner
-  const fr = s.frame || {};
-  $('frameInfo').innerHTML = fr.presupposition
-    ? `detected presupposition: <b>"${esc(fr.presupposition)}"</b> (${esc(fr.type)}) &rarr;
-       &epsilon;-ball recentered on neutral topic <b>"${esc(fr.neutral_topic)}"</b>,
-       dialectic probes injected (affirm + counter)`
-    : 'no loaded frame detected; lens diversification only';
+  CSTL.populate(s);
+  renderFrameBand(s);
+  renderBalance(m.frame_balance);
 
-  // queries table
+  const specs = [
+    ['Semantic spread', H.semantic_spread, B.semantic_spread, f3, D.semantic_spread.lift_pct],
+    ['Domain entropy (bits)', H.shannon_entropy_bits, B.shannon_entropy_bits, f2, D.shannon_entropy_bits.lift_pct],
+    ['Ecosystem entropy (bits)', H.ecosystem_entropy_bits, B.ecosystem_entropy_bits, f2, D.ecosystem_entropy_bits.lift_pct],
+    ['Unique domains', H.n_domains, B.n_domains, x=>String(Math.round(x)), D.n_domains.lift_pct],
+  ];
+  $('cards').className = 'metric-row';
+  $('cards').innerHTML = specs.map(([label,h,b,fmt,lift])=>{
+    const liftTxt = lift==null ? '' : `<span class="lift ${lift<0?'down':''}">${lift>0?'+':''}${lift}%</span>`;
+    return `<div class="metric"><div class="m-label">${label}</div>
+      <div class="m-value">${fmt(h)}</div><div class="m-sub">baseline ${fmt(b)}${liftTxt}</div></div>`;
+  }).join('');
+  $('cards').querySelectorAll('.m-value').forEach((el,i)=>countUp(el, specs[i][1], specs[i][3]));
+  $('corpusLine').textContent = `${H.n_documents} documents across ${H.n_chunks} chunks, normalized entropy ${f2(H.normalized_entropy)}.`;
+
+  $('sql').textContent = Object.values(H.sql || {}).join('\n\n');
+
   const qd = s.query_distances || {}, qa = s.query_axes || {};
-  const axisChip = q => qa[q] === 'counter_frame'
-    ? ' <span class="chip" style="background:#241a3d;color:var(--purple)">counter-frame</span>'
-    : (qa[q] === 'affirm_frame'
-      ? ' <span class="chip" style="background:#332a12;color:var(--amber)">affirm-frame</span>' : '');
+  const axisTag = q => qa[q]==='counter_frame' ? '<span class="axis counter">counter-frame</span>'
+    : qa[q]==='affirm_frame' ? '<span class="axis affirm">affirm-frame</span>' : '';
   const rows = (s.approved_queries||[]).map(q =>
-    `<tr><td><span class="chip ok">approved</span>${axisChip(q)}</td><td>${esc(q)}</td><td>${qd[q] ?? ''}</td><td></td></tr>`)
+    `<tr><td><div class="qcell"><span class="status approved">approved</span>${axisTag(q)}</div></td>
+      <td class="q">${esc(q)}</td><td class="num">${qd[q] ?? ''}</td><td></td></tr>`)
     .concat((s.rejected_queries||[]).map(r =>
-    `<tr><td><span class="chip bad">rejected</span></td><td>${esc(r.query)}</td><td></td><td>${esc(r.reason)}</td></tr>`));
+    `<tr><td><span class="status rejected">rejected</span></td>
+      <td class="q">${esc(r.query)}</td><td class="num"></td><td class="reason">${esc(r.reason)}</td></tr>`));
   $('queries').querySelector('tbody').innerHTML = rows.join('');
-  $('epsUsed').textContent = ` = ${s.epsilon_used} (${s.epsilon_mode})`;
 
-  // sources table
   $('sources').querySelector('tbody').innerHTML = (s.documents_summary||[]).map(d =>
-    `<tr><td><span class="chip ${d.group==='harness'?'ok':'bad'}">${d.group}</span></td>
-     <td>${esc(d.domain)}</td><td>${esc(d.ecosystem)}</td>
-     <td><a href="${encodeURI(d.url)}" target="_blank" rel="noopener">${esc(d.title)}</a></td>
-     <td>${esc(d.source_query.slice(0,60))}</td></tr>`).join('');
+    `<tr><td><span class="grp ${d.group==='harness'?'':'baseline'}">${d.group}</span></td>
+      <td>${esc(d.domain)}</td><td class="eco">${esc(d.ecosystem)}</td>
+      <td><a href="${encodeURI(d.url)}" target="_blank" rel="noopener">${esc(d.title)}</a></td>
+      <td class="q">${esc((d.source_query||'').slice(0,60))}</td></tr>`).join('');
 
   drawDomains(H.domain_counts, B.domain_counts);
   drawScatter(s.scatter || []);
   drawEps(s.epsilon_curve, s.epsilon_used);
   drawSynthesis(s.synthesis || {});
+  reveal();
 }
 
-function esc(t){ const d=document.createElement('div'); d.textContent=t||''; return d.innerHTML; }
-function mk(id, cfg){ if (charts[id]) charts[id].destroy(); charts[id]=new Chart($(id), cfg); }
-const gridOpts = {grid:{color:'#232c44'}, ticks:{color:'#8b94ad', font:{size:10}}};
+function renderFrameBand(s) {
+  const fr = s.frame || {};
+  if (!fr.presupposition) {
+    $('frameBand').innerHTML = `<div class="band-note">No loaded frame detected.</div>`;
+    return;
+  }
+  const raw = s.original_query || $('query').value;
+  const neutral = fr.neutral_topic || '';
+  const norm = w => w.toLowerCase().replace(/[^a-z0-9]/g,'');
+  const keep = new Set(neutral.split(/\s+/).map(norm));
+  const tokens = raw.split(/\s+/).map(w => `<span class="${keep.has(norm(w))?'kept':'stripped'}">${esc(w)}</span>`).join(' ');
+  $('frameBand').innerHTML = `
+    <div class="band-line"><span>${tokens}</span><span class="relate">recentered on</span><span class="neutral">${esc(neutral)}</span></div>
+    <div class="band-note">${esc(fr.type)} presupposition: "${esc(fr.presupposition)}"</div>`;
+}
+
+function renderBalance(fb) {
+  if (!fb) {
+    $('balanceWrap').innerHTML = `<div class="band-note">No loaded premise to score.</div>`;
+    return;
+  }
+  const pos = v => ((Math.max(-1, Math.min(1, v)) + 1) / 2 * 100);
+  const band = 0.08, bL = pos(-band), bR = pos(band);
+  const verdict = {
+    balanced: 'The corpus is <b>balanced</b>: evidence for and against the premise is represented evenly.',
+    leans_affirm: 'The corpus <b>still leans toward</b> the asked premise.',
+    leans_counter: 'The corpus <b>leans against</b> the asked premise.'
+  }[fb.verdict] || esc(fb.verdict);
+  const reduction = fb.bias_reduction_pct != null ? ` Bias reduced by ${fb.bias_reduction_pct}% versus plain search.` : '';
+  $('balanceWrap').innerHTML = `
+    <div class="gauge-verdict">${verdict}${reduction}</div>
+    <div class="scale">
+      <div class="scale-track"></div>
+      <div class="scale-band" style="left:${bL}%;width:${bR-bL}%"></div>
+      <div class="scale-zero" style="left:50%"></div>
+      <div class="marker baseline" style="left:50%"><span class="pin"></span><span class="tag">baseline</span></div>
+      <div class="marker harness" style="left:50%"><span class="pin"></span><span class="tag">harness</span></div>
+    </div>
+    <div class="scale-ends"><span>-1 argues against</span><span class="mid">0 neutral</span><span>+1 argues the frame</span></div>
+    <div class="gauge-readout">harness <b>${sgn(fb.harness)}</b>, baseline <b>${sgn(fb.baseline)}</b>, toward "${esc(fb.presupposition)}"</div>`;
+  requestAnimationFrame(()=>{
+    $('balanceWrap').querySelector('.marker.baseline').style.left = pos(fb.baseline) + '%';
+    $('balanceWrap').querySelector('.marker.harness').style.left = pos(fb.harness) + '%';
+  });
+}
+
+// ---- charts (dark, restrained) ----
+const C = { text:'#e7eaf3', dim:'#9aa3b8', faint:'#646e87', accent:'#5b9bd5', teal:'#56c2b8',
+  grid:'rgba(255,255,255,.055)', neutral:'#36405a' };
+const baseScale = (extra={}) => ({ grid:{color:C.grid, drawBorder:false}, border:{display:false},
+  ticks:{color:C.faint, font:{family:'Inter', size:10}}, ...extra });
+const legend = () => ({ labels:{color:C.dim, font:{family:'Inter', size:11}, boxWidth:9, boxHeight:9, usePointStyle:true, pointStyle:'circle'} });
+function mk(id, cfg){ if (charts[id]) charts[id].destroy(); charts[id] = new Chart($(id), cfg); }
 
 function drawDomains(h, b) {
   const labels = [...new Set([...(h||[]).map(d=>d.domain), ...(b||[]).map(d=>d.domain)])];
   const series = src => labels.map(l => (src||[]).find(d=>d.domain===l)?.chunks || 0);
   mk('domainChart', {type:'bar',
     data:{labels, datasets:[
-      {label:'harness', data:series(h), backgroundColor:'#5b8cff'},
-      {label:'baseline', data:series(b), backgroundColor:'#3a4258'}]},
-    options:{plugins:{legend:{labels:{color:'#8b94ad'}}},
-      scales:{x:{...gridOpts, ticks:{...gridOpts.ticks, maxRotation:60, minRotation:40}}, y:{...gridOpts}}}});
+      {label:'harness', data:series(h), backgroundColor:C.accent, borderRadius:3, maxBarThickness:20},
+      {label:'baseline', data:series(b), backgroundColor:C.neutral, borderRadius:3, maxBarThickness:20}]},
+    options:{plugins:{legend:legend()},
+      scales:{x:baseScale({grid:{display:false}, ticks:{color:C.faint, font:{family:'Inter',size:9.5}, maxRotation:55, minRotation:40}}), y:baseScale()}}});
 }
-
 function drawScatter(points) {
-  const palette = ['#5b8cff','#3ecf8e','#a78bfa','#f5b83d','#ff8fa3'];
+  const palette = ['#5b9bd5','#56c2b8','#9a8cc4','#c9a76a','#7f8aa6'];
   const groups = {};
   points.forEach(p => {
     const key = p.group === 'baseline' ? 'baseline' : 'viewpoint ' + (p.cluster + 1);
@@ -265,39 +574,203 @@ function drawScatter(points) {
   });
   mk('scatterChart', {type:'scatter',
     data:{datasets:Object.entries(groups).map(([k,v],i)=>({
-      label:k, data:v, pointRadius:5,
-      backgroundColor:k==='baseline' ? '#566077' : palette[i % palette.length]}))},
-    options:{plugins:{legend:{labels:{color:'#8b94ad'}},
-      tooltip:{callbacks:{label:c=>`${c.raw.domain}: ${c.raw.title}`}}},
-      scales:{x:{...gridOpts}, y:{...gridOpts}}}});
+      label:k, data:v, pointRadius:4, pointHoverRadius:6,
+      backgroundColor: k==='baseline' ? C.neutral : palette[i % palette.length]}))},
+    options:{plugins:{legend:legend(), tooltip:{callbacks:{label:c=>`${c.raw.domain}: ${c.raw.title}`}}},
+      scales:{x:baseScale(), y:baseScale()}}});
 }
-
 function drawEps(curve, used) {
   if (!curve) { mk('epsChart', {type:'line', data:{labels:[],datasets:[]}, options:{}}); return; }
   mk('epsChart', {type:'line',
     data:{labels:curve.map(c=>c.epsilon),
-      datasets:[{label:'achieved diversity D(ε)', data:curve.map(c=>c.diversity),
-        borderColor:'#3ecf8e', backgroundColor:'#3ecf8e33', fill:true, tension:.3,
-        pointBackgroundColor:curve.map(c=>c.epsilon===used?'#f5b83d':'#3ecf8e'),
-        pointRadius:curve.map(c=>c.epsilon===used?7:3)}]},
-    options:{plugins:{legend:{labels:{color:'#8b94ad'}},
-      tooltip:{callbacks:{footer:items=>'selected n='+curve[items[0].dataIndex].selected}}},
-      scales:{x:{...gridOpts, title:{display:true,text:'ε (radius constraint)',color:'#8b94ad'}}, y:{...gridOpts}}}});
+      datasets:[{label:'achieved diversity', data:curve.map(c=>c.diversity),
+        borderColor:C.accent, backgroundColor:'rgba(91,155,213,.12)', fill:true, tension:.35, borderWidth:2,
+        pointBackgroundColor:curve.map(c=>c.epsilon===used?C.accent:'#37506b'),
+        pointBorderColor:curve.map(c=>c.epsilon===used?C.accent:'#37506b'),
+        pointRadius:curve.map(c=>c.epsilon===used?6:2.5)}]},
+    options:{plugins:{legend:legend(), tooltip:{callbacks:{footer:items=>'selected n = '+curve[items[0].dataIndex].selected}}},
+      scales:{x:baseScale({title:{display:true, text:'radius constraint', color:C.faint, font:{family:'Inter',size:10}}}), y:baseScale()}}});
 }
-
 function drawSynthesis(syn) {
   const c = syn.conflict;
-  $('conflict').innerHTML = !c ? '<span class="consensus">not enough distinct clusters</span>' : `
-    <div class="view"><div class="terms">${(c.viewpoint_a.label_terms||[]).join(' &middot; ')}</div>
-      <p>${esc(c.viewpoint_a.excerpt.text)}&hellip;</p>
-      <div class="src">${esc(c.viewpoint_a.excerpt.domain)}</div></div>
-    <div class="view b"><div class="terms">${(c.viewpoint_b.label_terms||[]).join(' &middot; ')}</div>
-      <p>${esc(c.viewpoint_b.excerpt.text)}&hellip;</p>
-      <div class="src">${esc(c.viewpoint_b.excerpt.domain)}</div></div>`;
-  $('consensus').innerHTML = (syn.consensus_terms||[]).length
-    ? `cross-cluster consensus terms: <b>${syn.consensus_terms.join(', ')}</b>` : '';
+  $('conflict').innerHTML = !c
+    ? '<div class="consensus" style="margin:0">Not enough distinct clusters to surface a conflict.</div>'
+    : `<div class="view a"><div class="terms">${(c.viewpoint_a.label_terms||[]).join(' · ')}</div>
+        <p>${esc(c.viewpoint_a.excerpt.text)}...</p><div class="src">${esc(c.viewpoint_a.excerpt.domain)}</div></div>
+       <div class="view b"><div class="terms">${(c.viewpoint_b.label_terms||[]).join(' · ')}</div>
+        <p>${esc(c.viewpoint_b.excerpt.text)}...</p><div class="src">${esc(c.viewpoint_b.excerpt.domain)}</div></div>`;
+  $('consensus').innerHTML = (syn.consensus_terms||[]).length ? `Shared across clusters: <b>${syn.consensus_terms.map(esc).join(', ')}</b>` : '';
   $('narrative').textContent = syn.narrative || '';
 }
+
+// ---- 3D epsilon-ball constellation (hero) ----
+const CSTL = (function(){
+  const ROLE = {
+    lens:    { name:'lens',    color:new THREE.Color('#5b9bd5') },
+    affirm_frame: { name:'affirm', color:new THREE.Color('#c9a76a') },
+    counter_frame:{ name:'counter', color:new THREE.Color('#9a8cc4') },
+  };
+  let renderer, scene, camera, group, raycaster;
+  let coreGroup, glowGroup, edges;
+  let pickables = [];
+  let glowTex, coreGeo;
+  let pointer = new THREE.Vector2(-2,-2), hovering = null;
+  let dragging=false, lastX=0, lastY=0, autoRot=true, resumeT=0;
+  let rotX=0.35, rotY=0.2;
+  let ready=false, started=false;
+
+  function glowTexture(){
+    const c=document.createElement('canvas'); c.width=c.height=64;
+    const g=c.getContext('2d').createRadialGradient(32,32,0,32,32,32);
+    g.addColorStop(0,'rgba(255,255,255,1)'); g.addColorStop(.35,'rgba(255,255,255,.45)');
+    g.addColorStop(1,'rgba(255,255,255,0)');
+    const ctx=c.getContext('2d'); ctx.fillStyle=g; ctx.fillRect(0,0,64,64);
+    const t=new THREE.Texture(c); t.needsUpdate=true; return t;
+  }
+
+
+  function init(){
+    const el=$('constellation'); const w=el.clientWidth, h=el.clientHeight;
+    if(!w||!h) return false;
+    renderer=new THREE.WebGLRenderer({antialias:true, alpha:true});
+    renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+    renderer.setSize(w,h);
+    el.insertBefore(renderer.domElement, el.firstChild);
+    scene=new THREE.Scene();
+    camera=new THREE.PerspectiveCamera(45, w/h, 0.1, 100);
+    camera.position.set(0,0,4.3);
+    group=new THREE.Group(); scene.add(group);
+    raycaster=new THREE.Raycaster();
+    glowTex=glowTexture();
+    coreGeo=new THREE.SphereGeometry(0.038, 16, 16);
+
+    coreGroup=new THREE.Group(); glowGroup=new THREE.Group(); group.add(coreGroup); group.add(glowGroup);
+
+    const cv=renderer.domElement;
+    cv.style.cursor='grab';
+    cv.addEventListener('pointermove', onMove);
+    cv.addEventListener('pointerleave', ()=>{ pointer.set(-2,-2); });
+    cv.addEventListener('pointerdown', e=>{ dragging=true; autoRot=false; lastX=e.clientX; lastY=e.clientY; cv.style.cursor='grabbing'; });
+    window.addEventListener('pointerup', ()=>{ if(dragging){ dragging=false; resumeT=performance.now()+2600; cv.style.cursor='grab'; } });
+    window.addEventListener('resize', onResize);
+    ready=true;
+    if(!started){ started=true; animate(); }
+    return true;
+  }
+
+  function onResize(){
+    if(!renderer) return;
+    const el=$('constellation'); const w=el.clientWidth, h=el.clientHeight; if(!w||!h) return;
+    renderer.setSize(w,h); camera.aspect=w/h; camera.updateProjectionMatrix();
+  }
+
+  function onMove(e){
+    const r=renderer.domElement.getBoundingClientRect();
+    pointer.x=((e.clientX-r.left)/r.width)*2-1;
+    pointer.y=-((e.clientY-r.top)/r.height)*2+1;
+    if(dragging){
+      rotY += (e.clientX-lastX)*0.006; rotX += (e.clientY-lastY)*0.006;
+      rotX=Math.max(-1.3,Math.min(1.3,rotX)); lastX=e.clientX; lastY=e.clientY;
+    }
+  }
+
+  function clearNodes(){
+    [coreGroup, glowGroup].forEach(g=>{ while(g.children.length){ const c=g.children.pop(); if(c.material) c.material.dispose(); g.remove(c); } });
+    if(edges){ group.remove(edges); edges.geometry.dispose(); edges.material.dispose(); edges=null; }
+    pickables=[]; hovering=null; $('cstlTip').style.opacity=0;
+  }
+
+  function positions(queries, dist, eps){
+    const N=queries.length, ds=queries.map(q=>dist[q] ?? 0);
+    const dmin=Math.min(...ds), dmax=Math.max(...ds), ga=Math.PI*(3-Math.sqrt(5));
+    const k=1.4/(eps>0?eps:1);
+    return queries.map((q,i)=>{
+      const y=1-2*(i+0.5)/N, rxy=Math.sqrt(Math.max(0,1-y*y)), th=ga*i;
+      const dir=new THREE.Vector3(Math.cos(th)*rxy, y, Math.sin(th)*rxy);
+      const frac=dmax>dmin ? (ds[i]-dmin)/(dmax-dmin) : 0.5;
+      const r=(eps>0?eps:1)*(0.34+0.6*frac)*k;     // fill the volume, not a shell
+      return { q, d:ds[i], pos:dir.multiplyScalar(r) };
+    });
+  }
+
+  function populate(s){
+    if(!ready && !init()) { return; }
+    clearNodes();
+    const queries=s.approved_queries||[]; if(!queries.length) return;
+    const qa=s.query_axes||{}, qd=s.query_distances||{}, eps=Number(s.epsilon_used)||1;
+    const P=positions(queries, qd, eps);
+
+    P.forEach(p=>{
+      const role=ROLE[qa[p.q]] || ROLE.lens;
+      const core=new THREE.Mesh(coreGeo, new THREE.MeshBasicMaterial({color:role.color}));
+      core.position.copy(p.pos);
+      core.userData={ q:p.q, d:p.d, role:role.name, base:1 };
+      coreGroup.add(core); pickables.push(core);
+      const glow=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex, color:role.color, transparent:true,
+        opacity:0.55, depthWrite:false, blending:THREE.AdditiveBlending}));
+      glow.scale.setScalar(0.34); glow.position.copy(p.pos); glow.userData.core=core; glowGroup.add(glow);
+    });
+
+    // edges: all pairs, brightness by spread (additive, subtle)
+    const verts=[], cols=[], maxd=2*1.4, base=new THREE.Color('#5b9bd5');
+    for(let i=0;i<P.length;i++) for(let j=i+1;j<P.length;j++){
+      const a=P[i].pos, b=P[j].pos, dd=a.distanceTo(b), t=Math.min(1,dd/maxd);
+      const inten=0.05+0.32*t;
+      verts.push(a.x,a.y,a.z, b.x,b.y,b.z);
+      for(let k=0;k<2;k++) cols.push(base.r*inten, base.g*inten, base.b*inten);
+    }
+    const eg=new THREE.BufferGeometry();
+    eg.setAttribute('position', new THREE.Float32BufferAttribute(verts,3));
+    eg.setAttribute('color', new THREE.Float32BufferAttribute(cols,3));
+    edges=new THREE.LineSegments(eg, new THREE.LineBasicMaterial({vertexColors:true, transparent:true, blending:THREE.AdditiveBlending, depthWrite:false}));
+    group.add(edges);
+
+    // legend (only roles present)
+    const present=[...new Set(P.map(p=>(ROLE[qa[p.q]]||ROLE.lens).name))];
+    const swatch={lens:'#5b9bd5', affirm:'#c9a76a', counter:'#9a8cc4'};
+    $('cstlLegend').innerHTML=present.map(n=>`<span><i style="background:${swatch[n]}"></i>${n}</span>`).join('');
+    $('cstlMeta').textContent=`radius ${Number(eps).toFixed(2)} · ${queries.length} nodes`;
+    onResize();
+  }
+
+  function animate(){
+    requestAnimationFrame(animate);
+    if(!renderer) return;
+    if(autoRot && !dragging) rotY+=0.0016;
+    if(!autoRot && !dragging && performance.now()>resumeT) autoRot=true;
+    group.rotation.y=rotY; group.rotation.x=rotX;
+
+    // hover pick
+    let hit=null;
+    if(pickables.length && pointer.x>-1.5){
+      raycaster.setFromCamera(pointer, camera);
+      const ix=raycaster.intersectObjects(pickables, false);
+      if(ix.length) hit=ix[0].object;
+    }
+    if(hit!==hovering){
+      if(hovering) hovering.scale.setScalar(1);
+      hovering=hit;
+      const tip=$('cstlTip');
+      if(hit){
+        hit.scale.setScalar(1.55);
+        tip.innerHTML=`${esc(hit.userData.q)}<span class="d">distance ${Number(hit.userData.d).toFixed(4)} · <span class="role">${hit.userData.role}</span></span>`;
+        tip.style.opacity=1;
+      } else tip.style.opacity=0;
+    }
+    if(hovering){
+      const v=hovering.position.clone().applyMatrix4(group.matrixWorld).project(camera);
+      const el=$('constellation'), w=el.clientWidth, h=el.clientHeight;
+      $('cstlTip').style.left=((v.x*0.5+0.5)*w)+'px';
+      $('cstlTip').style.top=((-v.y*0.5+0.5)*h)+'px';
+    }
+    renderer.render(scene, camera);
+  }
+
+  return { populate };
+})();
+
+// idle state: reveal the empty dashboard panels and the boundary haze (no nodes)
+window.addEventListener('load', ()=>{ reveal(); try { CSTL.populate({approved_queries:[]}); } catch(e){} });
 </script>
 </body>
 </html>
