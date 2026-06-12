@@ -34,9 +34,24 @@ _DIRECTIONAL = (
 _STANCE_ADJ = (
     r"(?:good|bad|great|terrible|safe|dangerous|effective|harmful|healthy|"
     r"unhealthy|reliable|unreliable|productive|ethical|unethical|legal|illegal|"
-    r"worth\s+it|real|fake|overrated|underrated|slow|fast|better|worse)"
+    r"worth\s+it|real|fake|overrated|underrated|slow|fast|better|worse|"
+    r"addictive|toxic|risky|beneficial|necessary|expensive|corrupt|fair|unfair)"
 )
 _COMPARATOR = r"(?:better|worse|safer|cheaper|faster|stronger|healthier|smarter|more\s+\w+)"
+# Trailing prepositional complement after a stance adjective:
+# "bad FOR TEENAGERS", "better FOR THE ENVIRONMENT", "good TO HAVE IN SCHOOLS"
+_COMPLEMENT = r"(?:for|to|in|on|at|with|among|of)\s+.+"
+_POLAR_RE = None  # compiled lazily below (needs the f-string pieces above)
+
+
+def _polar_re():
+    global _POLAR_RE
+    if _POLAR_RE is None:
+        _POLAR_RE = re.compile(
+            rf"^{_AUX}\s+(?P<x>.+?)\s+(?:so\s+)?(?P<adj>{_STANCE_ADJ})"
+            rf"(?:\s+(?P<rest>{_COMPLEMENT}))?$"
+        )
+    return _POLAR_RE
 
 _BIAS_PATTERNS = [
     rf"^\s*(?:why|how come|is|are|was|were|should|could|can|do|does|did|will)\b",
@@ -87,6 +102,11 @@ def neutralize(query: str) -> str:
     t = re.sub(rf"^\s*(?:why|how come|how)\s+(?:{_AUX}\s+)?", " ", t)
     for pat in _BIAS_PATTERNS:
         t = re.sub(pat, " ", t)
+    # Stance adjective followed by a prepositional complement ("bad FOR teenagers",
+    # "better FOR the environment"): drop the adjective, keep the complement.
+    t = re.sub(
+        rf"\b(?:so\s+)?{_STANCE_ADJ}\b(?=\s+(?:for|to|in|on|at|with|among|of)\b)", " ", t
+    )
     t = re.sub(rf"\b{_DIRECTIONAL}\b", " ", t)
     t = _clean(t)
     return t or _clean(query.lower())
@@ -121,12 +141,15 @@ def analyze(query: str) -> Frame:
     if f.type == "none" and re.search(rf"\w.*\b{_DIRECTIONAL}\b.*\w", q):
         f.type = "causal"
         f.presupposition = q
-    # 5. polar stance question "is X safe"
+    # 5. polar stance question, optionally with a complement:
+    #    "is X safe", "is X bad for Y", "are X better for Y"
     if f.type == "none":
-        m = re.match(rf"^{_AUX}\s+(?P<x>.+?)\s+(?:so\s+)?(?P<adj>{_STANCE_ADJ})$", q)
+        m = _polar_re().match(q)
         if m:
             f.type = "polar"
-            f.presupposition = _clean(f"{m.group('x')} {m.group('adj')}")
+            f.presupposition = _clean(" ".join(
+                part for part in (m.group("x"), m.group("adj"), m.group("rest")) if part
+            ))
 
     if not f.presupposition:
         return f
@@ -141,9 +164,12 @@ def analyze(query: str) -> Frame:
     if f.type == "comparative" and comp:
         counters.append(f"{_clean(comp.group('b'))} {comp.group('cmp')} than {_clean(comp.group('a'))} evidence")
     if f.type == "polar":
-        m = re.match(rf"^{_AUX}\s+(?P<x>.+?)\s+(?:so\s+)?(?P<adj>{_STANCE_ADJ})$", q)
+        m = _polar_re().match(q)
         if m:
-            counters.append(f"{_clean(m.group('x'))} not {m.group('adj')} evidence concerns")
+            rest = f" {_clean(m.group('rest'))}" if m.group("rest") else ""
+            counters.append(
+                f"{_clean(m.group('x'))} not {m.group('adj')}{rest} evidence concerns"
+            )
     seen = set()
     f.counter_queries = [c for c in counters if not (c in seen or seen.add(c))][:4]
 

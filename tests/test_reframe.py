@@ -23,6 +23,25 @@ def test_polar_question_frame():
     assert any(" not safe" in c for c in f.counter_queries)
 
 
+def test_polar_with_prepositional_complement():
+    """Regression: stance adjective mid-sentence ('bad FOR teenagers')."""
+    f = reframe.analyze("is social media bad for teenagers")
+    assert f.type == "polar"
+    assert f.presupposition == "social media bad for teenagers"
+    assert "bad" not in f.neutral_topic
+    assert "teenagers" in f.neutral_topic            # complement survives neutralization
+    assert any("not bad for teenagers" in c for c in f.counter_queries)
+
+
+def test_polar_better_for_without_than():
+    """Regression: 'better for X' is polar (comparative needs 'than')."""
+    f = reframe.analyze("are electric cars better for the environment")
+    assert f.type == "polar"
+    assert f.presupposition == "electric cars better for the environment"
+    assert "better" not in f.neutral_topic
+    assert any("not better for the environment" in c for c in f.counter_queries)
+
+
 def test_comparative_frame_reverses_cleanly():
     f = reframe.analyze("is rust better than c++")
     assert f.type == "comparative"
