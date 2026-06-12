@@ -140,6 +140,22 @@
   .node.active .nlabel { color:var(--text); }
   @keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(91,155,213,.35);} 50%{box-shadow:0 0 0 7px rgba(91,155,213,0);} }
   .stage-note { text-align:center; font-size:12px; color:var(--faint); margin-top:28px; min-height:15px; font-family:var(--mono); letter-spacing:.02em; }
+  .sponsor-map {
+    display:grid; grid-template-columns:repeat(5,1fr); gap:10px;
+    margin:28px 0 22px;
+  }
+  .sponsor-card {
+    background:rgba(16,20,30,.66); border:1px solid var(--line); border-radius:10px;
+    padding:12px 13px; min-width:0;
+  }
+  .sponsor-card b {
+    display:block; color:var(--text); font-size:12px; font-weight:600; line-height:1.3;
+  }
+  .sponsor-card span {
+    display:block; color:var(--faint); font-size:11px; line-height:1.45; margin-top:5px;
+  }
+  @media (max-width:920px){ .sponsor-map { grid-template-columns:repeat(2,1fr); } }
+  @media (max-width:520px){ .sponsor-map { grid-template-columns:1fr; } }
 
   /* ---- panels / layout ---- */
   main {
@@ -306,6 +322,14 @@
     <div class="stage-note" id="stageNote"></div>
   </div>
 
+  <section class="sponsor-map" aria-label="Sponsor architecture">
+    <div class="sponsor-card"><b>TrueFoundry</b><span>Gateway for generation, critic checks, and guardrails</span></div>
+    <div class="sponsor-card"><b>Composio</b><span>Live search execution for approved perspective queries</span></div>
+    <div class="sponsor-card"><b>Airbyte</b><span>Durable ETL path for staged records and syncs</span></div>
+    <div class="sponsor-card"><b>ClickHouse</b><span>Storage plus SQL metrics for spread, entropy, and balance</span></div>
+    <div class="sponsor-card"><b>Render</b><span>Production hosting for the dashboard and API</span></div>
+  </section>
+
   <main>
 
     <section class="panel hero reveal">
@@ -418,9 +442,15 @@ $('copySql').onclick = () => {
 const RAIL = ['Input','Angles','Search','ETL','Metrics','Synthesis'];
 const STAGE_INDEX = {queued:-1, ingress:0, generator:1, critic:1, executor:2, etl:3, persist:3, evaluate:4, synthesize:5, done:6};
 const STAGE_NOTE = {
-  queued:'queued', ingress:'checking the query', generator:'building perspective queries',
-  critic:'reviewing query quality', executor:'retrieving sources', etl:'normalizing into chunks',
-  persist:'writing to ClickHouse', evaluate:'computing metrics in SQL', synthesize:'clustering viewpoints', done:'complete'
+  queued:'queued', ingress:'checking the query with local guardrails and TrueFoundry policies when configured',
+  generator:'building perspective queries with the variance engine',
+  critic:'reviewing query quality before tool execution',
+  executor:'retrieving sources through Composio',
+  etl:'normalizing records for the Airbyte-ready ETL path',
+  persist:'writing documents and embeddings to ClickHouse',
+  evaluate:'computing ClickHouse SQL metrics',
+  synthesize:'clustering viewpoints for the Render dashboard',
+  done:'complete'
 };
 function buildRail() {
   $('rail').insertAdjacentHTML('afterbegin',
@@ -473,6 +503,7 @@ async function poll(sid) {
 const f2 = x => Number(x).toFixed(2);
 const f3 = x => Number(x).toFixed(3);
 const sgn = x => (x >= 0 ? '+' : '-') + Math.abs(Number(x)).toFixed(3);
+const dist = x => Number.isFinite(Number(x)) ? Number(x).toFixed(2) : '';
 function esc(t){ const d=document.createElement('div'); d.textContent = t==null?'':t; return d.innerHTML; }
 function countUp(el, to, fmt, dur=900) {
   const t0 = performance.now(), ease = t => 1 - Math.pow(1 - t, 4);
@@ -515,7 +546,7 @@ function render(s) {
     : qa[q]==='affirm_frame' ? '<span class="axis affirm">affirm-frame</span>' : '';
   const rows = (s.approved_queries||[]).map(q =>
     `<tr><td><div class="qcell"><span class="status approved">approved</span>${axisTag(q)}</div></td>
-      <td class="q">${esc(q)}</td><td class="num">${qd[q] ?? ''}</td><td></td></tr>`)
+      <td class="q">${esc(q)}</td><td class="num">${dist(qd[q])}</td><td class="reason">Selected perspective</td></tr>`)
     .concat((s.rejected_queries||[]).map(r =>
     `<tr><td><span class="status rejected">rejected</span></td>
       <td class="q">${esc(r.query)}</td><td class="num"></td><td class="reason">${esc(r.reason)}</td></tr>`));

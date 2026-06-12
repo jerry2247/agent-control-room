@@ -50,13 +50,13 @@ For a live sponsor demo, configure the relevant environment variables from `.env
 
 ```text
 User query
-  -> ingress guardrails
-  -> variance engine
-  -> critic
-  -> search execution
-  -> ETL and chunking
-  -> ClickHouse storage and metrics
-  -> synthesis and dashboard
+  -> ingress guardrails through TrueFoundry gateway policies plus local checks
+  -> variance engine with TrueFoundry-backed generation when enabled
+  -> critic review with deterministic checks and optional TrueFoundry audit
+  -> Composio search execution across the approved perspective queries
+  -> Airbyte-ready ETL path with inline chunking for live response speed
+  -> ClickHouse storage and metrics for spread, entropy, and frame balance
+  -> synthesis and dashboard served from Render
 ```
 
 The variance engine embeds candidate queries as unit vectors and selects the set with the largest pairwise spread while enforcing an epsilon radius around the neutralized topic. Auto epsilon sweeps the candidate space and chooses a radius that captures most of the available diversity without drifting away from the topic.
