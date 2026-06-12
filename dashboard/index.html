@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orthogonal Search Harness</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg:#0b0e14; --panel:#131826; --panel2:#1a2133; --line:#232c44;
+    --text:#e8ecf6; --dim:#8b94ad; --accent:#5b8cff; --green:#3ecf8e;
+    --amber:#f5b83d; --red:#ff6b6b; --purple:#a78bfa;
+  }
+  * { box-sizing:border-box; margin:0; }
+  body { background:var(--bg); color:var(--text); font:14px/1.5 "SF Mono",Menlo,Consolas,monospace; padding:24px; }
+  h1 { font-size:20px; letter-spacing:.4px; }
+  h1 span { color:var(--accent); }
+  .tagline { color:var(--dim); margin:4px 0 18px; font-size:12.5px; }
+  .badges { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px; }
+  .badge { background:var(--panel2); border:1px solid var(--line); border-radius:20px; padding:3px 11px; font-size:11.5px; color:var(--dim); }
+  .badge b { color:var(--green); font-weight:600; }
+  .row { display:flex; gap:14px; flex-wrap:wrap; }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:14px; }
+  .controls { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  input[type=text] { flex:1; min-width:260px; background:var(--panel2); border:1px solid var(--line); border-radius:8px; color:var(--text); padding:10px 12px; font:inherit; }
+  input[type=range] { accent-color:var(--accent); width:130px; }
+  select { background:var(--panel2); border:1px solid var(--line); color:var(--text); border-radius:8px; padding:9px; font:inherit; }
+  button { background:var(--accent); border:0; border-radius:8px; color:#fff; padding:10px 18px; font:inherit; font-weight:700; cursor:pointer; }
+  button:disabled { opacity:.45; cursor:wait; }
+  label.small { color:var(--dim); font-size:12px; display:flex; align-items:center; gap:6px; }
+  .stage { color:var(--amber); font-size:12.5px; min-height:18px; margin-top:10px; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:12px; }
+  .card { background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:13px 15px; }
+  .card .k { color:var(--dim); font-size:11px; text-transform:uppercase; letter-spacing:.7px; }
+  .card .v { font-size:26px; font-weight:700; margin:4px 0 2px; }
+  .card .d { font-size:11.5px; color:var(--dim); }
+  .lift { color:var(--green); font-weight:700; }
+  .neg { color:var(--red); }
+  table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  th, td { text-align:left; padding:7px 9px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--dim); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.6px; }
+  .chip { display:inline-block; border-radius:5px; padding:1px 8px; font-size:11px; font-weight:700; }
+  .ok { background:#10301f; color:var(--green); }
+  .bad { background:#3a1620; color:var(--red); }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:900px){ .grid2 { grid-template-columns:1fr; } }
+  .charts canvas { max-height:260px; }
+  h3 { font-size:13px; color:var(--dim); text-transform:uppercase; letter-spacing:.8px; margin-bottom:10px; }
+  .conflict { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .view { background:var(--panel2); border-left:3px solid var(--purple); border-radius:8px; padding:12px; font-size:12.5px; }
+  .view.b { border-left-color:var(--amber); }
+  .view .terms { color:var(--purple); font-weight:700; font-size:11.5px; text-transform:uppercase; letter-spacing:.5px; }
+  .view.b .terms { color:var(--amber); }
+  .view .src { color:var(--dim); font-size:11px; margin-top:8px; word-break:break-all; }
+  details { margin-top:10px; } summary { cursor:pointer; color:var(--dim); font-size:12px; }
+  pre { background:#0a0d14; border:1px solid var(--line); border-radius:8px; padding:12px; overflow-x:auto; font-size:11px; color:#9fd0ff; margin-top:8px; }
+  a { color:var(--accent); text-decoration:none; }
+  .consensus { font-size:12.5px; color:var(--dim); margin-top:10px; }
+  .consensus b { color:var(--green); }
+  .err { color:var(--red); font-size:12px; white-space:pre-wrap; }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+<h1>ORTHOGONAL <span>SEARCH HARNESS</span></h1>
+<div class="tagline">one biased query &rarr; presupposition neutralized &rarr; N orthogonal + dialectic queries &rarr; verified multi-perspective corpus, with diversity and frame balance proven live in ClickHouse SQL</div>
+<div class="badges" id="badges"></div>
+
+<div class="panel">
+  <div class="controls">
+    <input id="query" type="text" placeholder='Try: "is nuclear energy safe"' value="is nuclear energy safe">
+    <label class="small">N
+      <select id="nq"><option>3</option><option>4</option><option selected>5</option><option>6</option><option>7</option><option>8</option></select>
+    </label>
+    <label class="small"><input type="checkbox" id="autoEps" checked> &epsilon; auto</label>
+    <label class="small" id="epsWrap" style="opacity:.4">&epsilon; <input type="range" id="eps" min="0.4" max="1.5" step="0.05" value="1.0" disabled> <span id="epsVal">1.00</span></label>
+    <button id="go">RUN HARNESS</button>
+  </div>
+  <div class="stage" id="stage"></div>
+  <div class="err" id="errors"></div>
+</div>
+
+<div id="results" class="hidden">
+  <div class="panel">
+    <h3>Diversity metrics: harness vs single-query baseline (computed in ClickHouse)</h3>
+    <div class="cards" id="cards"></div>
+    <details><summary>View the SQL executed live in the OLAP store</summary><pre id="sql"></pre></details>
+  </div>
+
+  <div class="grid2 charts">
+    <div class="panel"><h3>Source domain distribution</h3><canvas id="domainChart"></canvas></div>
+    <div class="panel"><h3>Embedding space (PCA): corpus dispersion</h3><canvas id="scatterChart"></canvas></div>
+    <div class="panel"><h3>Diversity vs &epsilon; (auto-tuner sweep)</h3><canvas id="epsChart"></canvas></div>
+    <div class="panel">
+      <h3>Conflicting viewpoints (most distant clusters)</h3>
+      <div class="conflict" id="conflict"></div>
+      <div class="consensus" id="consensus"></div>
+      <div id="narrative" class="consensus"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>Generated orthogonal queries (&epsilon;<span id="epsUsed"></span>)</h3>
+    <div class="consensus" id="frameInfo" style="margin:0 0 10px"></div>
+    <table id="queries"><thead><tr><th>status</th><th>query</th><th>&Vert;x&minus;c&Vert;&#8322;</th><th>reason</th></tr></thead><tbody></tbody></table>
+  </div>
+
+  <div class="panel">
+    <h3>Retrieved sources</h3>
+    <table id="sources"><thead><tr><th>group</th><th>domain</th><th>ecosystem</th><th>title</th><th>via query</th></tr></thead><tbody></tbody></table>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let charts = {};
+
+const SERVE_HINT = 'API server not reachable from this page.\n' +
+  'This dashboard must be served BY the API server (relative /api/* calls), not opened as a file.\n' +
+  'From the repo root run:   python3 -m uvicorn app.main:app --reload\n' +
+  'then open:                http://localhost:8000\n' +
+  'If you are already on localhost, check the uvicorn terminal is running without errors ' +
+  'and that the port in the URL matches.';
+
+if (location.protocol === 'file:') {
+  $('errors').textContent = SERVE_HINT;
+}
+
+fetch('/api/health').then(r=>r.json()).then(h=>{
+  $('badges').innerHTML = Object.entries(h.backends)
+    .map(([k,v])=>`<span class="badge">${k}: <b>${v}</b></span>`).join('')
+    + `<span class="badge">db engine: <b>${h.database_engine}</b></span>`;
+}).catch(()=>{ $('errors').textContent = SERVE_HINT; });
+
+$('autoEps').onchange = e => {
+  $('eps').disabled = e.target.checked;
+  $('epsWrap').style.opacity = e.target.checked ? .4 : 1;
+};
+$('eps').oninput = e => $('epsVal').textContent = Number(e.target.value).toFixed(2);
+
+$('go').onclick = run;
+$('query').addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
+
+async function run() {
+  $('go').disabled = true; $('errors').textContent = ''; $('results').classList.add('hidden');
+  const body = {
+    query: $('query').value,
+    n_queries: Number($('nq').value),
+    epsilon: $('autoEps').checked ? 'auto' : Number($('eps').value),
+    include_baseline: true, sync: false
+  };
+  try {
+    const resp = await fetch('/api/search', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    if (!resp.ok) throw new Error((await resp.json()).detail || resp.statusText);
+    const {session_id} = await resp.json();
+    await poll(session_id);
+  } catch (e) {
+    $('errors').textContent = String(e).includes('Failed to fetch')
+      ? SERVE_HINT : String(e);
+    $('stage').textContent = '';
+  }
+  $('go').disabled = false;
+}
+
+async function poll(sid) {
+  for (let i = 0; i < 400; i++) {
+    const s = await (await fetch('/api/session/' + sid)).json();
+    $('stage').textContent = s.status === 'running' ? `running &raquo; stage: ${s.stage}`.replace('&raquo;','»') : '';
+    if (s.status === 'completed') { render(s); return; }
+    if (s.status === 'failed') { $('errors').textContent = (s.error_logs||[]).join('\n') || 'pipeline failed'; return; }
+    await new Promise(r => setTimeout(r, 700));
+  }
+  $('errors').textContent = 'timed out waiting for pipeline';
+}
+
+function card(title, h, b, fmt, liftPct) {
+  const lift = liftPct == null ? '' :
+    `<span class="lift ${liftPct < 0 ? 'neg' : ''}">${liftPct > 0 ? '+' : ''}${liftPct}%</span> vs baseline`;
+  return `<div class="card"><div class="k">${title}</div><div class="v">${fmt(h)}</div>
+          <div class="d">baseline ${fmt(b)} &middot; ${lift}</div></div>`;
+}
+
+function render(s) {
+  $('results').classList.remove('hidden');
+  $('stage').textContent = '';
+  const m = s.metrics, H = m.harness, B = m.baseline, D = m.deltas;
+  const f2 = x => Number(x).toFixed(2), f3 = x => Number(x).toFixed(3);
+  let frameCard = '';
+  if (m.frame_balance) {
+    const fb = m.frame_balance, sgn = x => (x >= 0 ? '+' : '') + Number(x).toFixed(3);
+    const verdictTxt = {balanced:'BALANCED', leans_affirm:'still leans toward the frame',
+                        leans_counter:'leans against the frame'}[fb.verdict] || fb.verdict;
+    frameCard = `<div class="card" style="border-color:var(--purple)">
+      <div class="k">Frame balance (0 = unbiased)</div>
+      <div class="v" style="color:${fb.verdict==='balanced'?'var(--green)':'var(--amber)'}">${sgn(fb.harness)}</div>
+      <div class="d">plain search ${sgn(fb.baseline)} toward "${esc(fb.presupposition)}"
+      &middot; <span class="lift">${verdictTxt}</span>${fb.bias_reduction_pct != null
+        ? ` &middot; bias &minus;${fb.bias_reduction_pct}%` : ''}</div></div>`;
+  }
+  $('cards').innerHTML =
+    frameCard +
+    card('Semantic spread', H.semantic_spread, B.semantic_spread, f3, D.semantic_spread.lift_pct) +
+    card('Domain entropy (bits)', H.shannon_entropy_bits, B.shannon_entropy_bits, f2, D.shannon_entropy_bits.lift_pct) +
+    card('Ecosystem entropy (bits)', H.ecosystem_entropy_bits, B.ecosystem_entropy_bits, f2, D.ecosystem_entropy_bits.lift_pct) +
+    card('Unique domains', H.n_domains, B.n_domains, x=>x, D.n_domains.lift_pct) +
+    `<div class="card"><div class="k">Corpus</div><div class="v">${H.n_documents}</div>
+     <div class="d">docs / ${H.n_chunks} chunks &middot; normalized entropy ${f2(H.normalized_entropy)}</div></div>`;
+  $('sql').textContent = Object.values(H.sql || {}).join('\n');
+
+  // detected presupposition banner
+  const fr = s.frame || {};
+  $('frameInfo').innerHTML = fr.presupposition
+    ? `detected presupposition: <b>"${esc(fr.presupposition)}"</b> (${esc(fr.type)}) &rarr;
+       &epsilon;-ball recentered on neutral topic <b>"${esc(fr.neutral_topic)}"</b>,
+       dialectic probes injected (affirm + counter)`
+    : 'no loaded frame detected; lens diversification only';
+
+  // queries table
+  const qd = s.query_distances || {}, qa = s.query_axes || {};
+  const axisChip = q => qa[q] === 'counter_frame'
+    ? ' <span class="chip" style="background:#241a3d;color:var(--purple)">counter-frame</span>'
+    : (qa[q] === 'affirm_frame'
+      ? ' <span class="chip" style="background:#332a12;color:var(--amber)">affirm-frame</span>' : '');
+  const rows = (s.approved_queries||[]).map(q =>
+    `<tr><td><span class="chip ok">approved</span>${axisChip(q)}</td><td>${esc(q)}</td><td>${qd[q] ?? ''}</td><td></td></tr>`)
+    .concat((s.rejected_queries||[]).map(r =>
+    `<tr><td><span class="chip bad">rejected</span></td><td>${esc(r.query)}</td><td></td><td>${esc(r.reason)}</td></tr>`));
+  $('queries').querySelector('tbody').innerHTML = rows.join('');
+  $('epsUsed').textContent = ` = ${s.epsilon_used} (${s.epsilon_mode})`;
+
+  // sources table
+  $('sources').querySelector('tbody').innerHTML = (s.documents_summary||[]).map(d =>
+    `<tr><td><span class="chip ${d.group==='harness'?'ok':'bad'}">${d.group}</span></td>
+     <td>${esc(d.domain)}</td><td>${esc(d.ecosystem)}</td>
+     <td><a href="${encodeURI(d.url)}" target="_blank" rel="noopener">${esc(d.title)}</a></td>
+     <td>${esc(d.source_query.slice(0,60))}</td></tr>`).join('');
+
+  drawDomains(H.domain_counts, B.domain_counts);
+  drawScatter(s.scatter || []);
+  drawEps(s.epsilon_curve, s.epsilon_used);
+  drawSynthesis(s.synthesis || {});
+}
+
+function esc(t){ const d=document.createElement('div'); d.textContent=t||''; return d.innerHTML; }
+function mk(id, cfg){ if (charts[id]) charts[id].destroy(); charts[id]=new Chart($(id), cfg); }
+const gridOpts = {grid:{color:'#232c44'}, ticks:{color:'#8b94ad', font:{size:10}}};
+
+function drawDomains(h, b) {
+  const labels = [...new Set([...(h||[]).map(d=>d.domain), ...(b||[]).map(d=>d.domain)])];
+  const series = src => labels.map(l => (src||[]).find(d=>d.domain===l)?.chunks || 0);
+  mk('domainChart', {type:'bar',
+    data:{labels, datasets:[
+      {label:'harness', data:series(h), backgroundColor:'#5b8cff'},
+      {label:'baseline', data:series(b), backgroundColor:'#3a4258'}]},
+    options:{plugins:{legend:{labels:{color:'#8b94ad'}}},
+      scales:{x:{...gridOpts, ticks:{...gridOpts.ticks, maxRotation:60, minRotation:40}}, y:{...gridOpts}}}});
+}
+
+function drawScatter(points) {
+  const palette = ['#5b8cff','#3ecf8e','#a78bfa','#f5b83d','#ff8fa3'];
+  const groups = {};
+  points.forEach(p => {
+    const key = p.group === 'baseline' ? 'baseline' : 'viewpoint ' + (p.cluster + 1);
+    (groups[key] = groups[key] || []).push({x:p.x, y:p.y, title:p.title, domain:p.domain});
+  });
+  mk('scatterChart', {type:'scatter',
+    data:{datasets:Object.entries(groups).map(([k,v],i)=>({
+      label:k, data:v, pointRadius:5,
+      backgroundColor:k==='baseline' ? '#566077' : palette[i % palette.length]}))},
+    options:{plugins:{legend:{labels:{color:'#8b94ad'}},
+      tooltip:{callbacks:{label:c=>`${c.raw.domain}: ${c.raw.title}`}}},
+      scales:{x:{...gridOpts}, y:{...gridOpts}}}});
+}
+
+function drawEps(curve, used) {
+  if (!curve) { mk('epsChart', {type:'line', data:{labels:[],datasets:[]}, options:{}}); return; }
+  mk('epsChart', {type:'line',
+    data:{labels:curve.map(c=>c.epsilon),
+      datasets:[{label:'achieved diversity D(ε)', data:curve.map(c=>c.diversity),
+        borderColor:'#3ecf8e', backgroundColor:'#3ecf8e33', fill:true, tension:.3,
+        pointBackgroundColor:curve.map(c=>c.epsilon===used?'#f5b83d':'#3ecf8e'),
+        pointRadius:curve.map(c=>c.epsilon===used?7:3)}]},
+    options:{plugins:{legend:{labels:{color:'#8b94ad'}},
+      tooltip:{callbacks:{footer:items=>'selected n='+curve[items[0].dataIndex].selected}}},
+      scales:{x:{...gridOpts, title:{display:true,text:'ε (radius constraint)',color:'#8b94ad'}}, y:{...gridOpts}}}});
+}
+
+function drawSynthesis(syn) {
+  const c = syn.conflict;
+  $('conflict').innerHTML = !c ? '<span class="consensus">not enough distinct clusters</span>' : `
+    <div class="view"><div class="terms">${(c.viewpoint_a.label_terms||[]).join(' &middot; ')}</div>
+      <p>${esc(c.viewpoint_a.excerpt.text)}&hellip;</p>
+      <div class="src">${esc(c.viewpoint_a.excerpt.domain)}</div></div>
+    <div class="view b"><div class="terms">${(c.viewpoint_b.label_terms||[]).join(' &middot; ')}</div>
+      <p>${esc(c.viewpoint_b.excerpt.text)}&hellip;</p>
+      <div class="src">${esc(c.viewpoint_b.excerpt.domain)}</div></div>`;
+  $('consensus').innerHTML = (syn.consensus_terms||[]).length
+    ? `cross-cluster consensus terms: <b>${syn.consensus_terms.join(', ')}</b>` : '';
+  $('narrative').textContent = syn.narrative || '';
+}
+</script>
+</body>
+</html>

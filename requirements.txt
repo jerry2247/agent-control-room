@@ -1,0 +1,16 @@
+# Core runtime
+fastapi>=0.115
+uvicorn[standard]>=0.30
+langgraph>=0.2
+httpx>=0.27
+numpy>=1.26
+beautifulsoup4>=4.12
+pydantic>=2.7
+
+# ClickHouse: chdb = embedded engine (local dev / single-node deploys),
+# clickhouse-connect = ClickHouse Cloud client (recommended in production)
+chdb>=2.0
+clickhouse-connect>=0.7
+
+# Optional sponsor SDK (REST fallback is built in, so this is not required):
+# composio
