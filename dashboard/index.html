@@ -41,6 +41,19 @@
     padding:0 26px 110px;
     background-image:radial-gradient(1200px 600px at 70% -10%, rgba(91,155,213,.05), transparent 60%);
   }
+  body::before {
+    content:"";
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    opacity:0;
+    background:
+      linear-gradient(90deg, transparent 0, transparent calc(24% - 1px), rgba(91,155,213,.10) 24%, transparent calc(24% + 1px)),
+      linear-gradient(90deg, transparent 0, transparent calc(76% - 1px), rgba(255,255,255,.055) 76%, transparent calc(76% + 1px)),
+      linear-gradient(180deg, transparent 0, transparent calc(32% - 1px), rgba(255,255,255,.05) 32%, transparent calc(32% + 1px));
+    animation:accentIn .9s var(--ease) .1s forwards;
+  }
+  @keyframes accentIn { to { opacity:1; } }
   .wrap { max-width:var(--maxw); margin:0 auto; overflow:hidden; }
 
   .eyebrow { font-size:11px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:var(--faint); }
@@ -50,9 +63,10 @@
   .topbar {
     display:flex; align-items:center; justify-content:space-between; gap:20px;
     padding:22px 2px 20px; border-bottom:1px solid var(--line); flex-wrap:wrap;
+    position:relative; z-index:2;
   }
-  .brand { font-size:15px; font-weight:600; letter-spacing:-.01em; }
-  .statusline { display:flex; flex-wrap:wrap; gap:5px 16px; font-size:11.5px; color:var(--faint); font-family:var(--mono); }
+  .brand { font-size:17px; font-weight:700; letter-spacing:0; }
+  .statusline { display:none; flex-wrap:wrap; gap:5px 16px; font-size:11.5px; color:var(--faint); font-family:var(--mono); }
   .statusline .item b { color:var(--dim); font-weight:500; }
 
   /* ---- prompt ---- */
@@ -273,7 +287,7 @@
     <div class="prompt-field">
       <span class="glyph">&gt;</span>
       <input id="query" type="text" placeholder='Ask something loaded, like "is nuclear energy safe"' value="is nuclear energy safe">
-      <button id="go">Run harness</button>
+      <button id="go">Run Parallax</button>
     </div>
     <div class="prompt-meta">
       <label>Queries
@@ -401,11 +415,11 @@ $('copySql').onclick = () => {
 };
 
 // ---- pipeline rail ----
-const RAIL = ['Ingress','Variance','Search','ETL','Metrics','Synthesis'];
+const RAIL = ['Input','Angles','Search','ETL','Metrics','Synthesis'];
 const STAGE_INDEX = {queued:-1, ingress:0, generator:1, critic:1, executor:2, etl:3, persist:3, evaluate:4, synthesize:5, done:6};
 const STAGE_NOTE = {
-  queued:'queued', ingress:'sanitizing input', generator:'generating orthogonal queries',
-  critic:'critic auditing queries', executor:'searching the live web', etl:'normalizing into chunks',
+  queued:'queued', ingress:'checking the query', generator:'building perspective queries',
+  critic:'reviewing query quality', executor:'retrieving sources', etl:'normalizing into chunks',
   persist:'writing to ClickHouse', evaluate:'computing metrics in SQL', synthesize:'clustering viewpoints', done:'complete'
 };
 function buildRail() {

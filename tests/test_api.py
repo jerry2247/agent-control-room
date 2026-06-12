@@ -20,7 +20,7 @@ def test_health_reports_backends(client):
 def test_dashboard_served(client):
     resp = client.get("/")
     assert resp.status_code == 200
-    assert "ORTHOGONAL" in resp.text
+    assert "Parallax" in resp.text
 
 
 def test_search_sync_roundtrip_and_live_metrics(client):

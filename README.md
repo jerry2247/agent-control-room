@@ -1,171 +1,153 @@
-# Orthogonal Search Harness
+# Parallax
 
-One biased query in. A verified, multi-perspective corpus out, with the diversity gain AND the premise-neutrality of the corpus proven live by SQL inside an OLAP (Online Analytical Processing) database.
+Parallax turns one loaded search prompt into a balanced, multi-perspective research corpus. It detects the premise hidden inside a question, rewrites the search space around the neutral topic, fans out across opposing angles, and measures whether the final corpus is actually broader than a normal single-query search.
 
-LLM search agents inherit the user's framing twice. First, where they look: a single query lands in one media ecosystem. Second, and deeper, what they ask: "why does X do Y" presupposes X->Y, so every retrieved document argues inside the user's premise no matter how diverse the sources. The harness breaks both loops mechanically. It detects and neutralizes the presupposition, expands the query into N mathematically orthogonal queries (including dialectic probes that test the premise itself) under a topical-relevance constraint, executes them concurrently against the live web, normalizes everything into ClickHouse, and benchmarks the result against a plain single-query baseline in real time.
+Built by Jerry, Jack, Adam, and Ritwin for a hackathon.
 
-## Pipeline
+We used the sponsor stack where it naturally fit the product: TrueFoundry for optional LLM gateway calls, Composio for live search execution, Airbyte for the durable ETL path, ClickHouse for OLAP metrics, and Render for deployment. The project also runs without keys for local demos and CI, and `/api/health` reports the active backend choices.
 
-```
-[ User Input ]
-      |
-      v
-1. INGRESS & GUARDRAILS ............ TrueFoundry LLM Gateway (+ local sanitizer)
-      |
-      v
-2. VARIANCE ENGINE ................. LangGraph state machine (cyclic: critic
-      |   - frame analysis: detect       feedback re-enters the generator)
-      |     presupposition P, recenter
-      |     on the neutralized topic
-      |   - dialectic probes: affirm-P
-      |     and counter-P queries with
-      |     guaranteed selection slots
-      |   - epsilon-constrained max-
-      |     dispersion selection
-      v
-3. AUTONOMOUS SEARCH EXECUTION ..... Composio tool execution, concurrent fan-out
-      |
-      v
-4. ETL PIPELINE .................... Airbyte connection sync (+ inline scraper)
-      |
-      v
-5. OLAP STORAGE & METRICS .......... ClickHouse: cosineDistance, entropy, and
-      |                              frame-balance stance symmetry, all in SQL
-      v
-6. SYNTHESIS & DASHBOARD ........... viewpoint clusters, conflict pairs, live charts
-```
+## What It Does
 
-## Mathematical foundation
+- Finds loaded framing in questions like `why does coffee cause cancer` or `is nuclear energy safe`.
+- Recenters the work on the neutral topic before generating new search queries.
+- Selects perspective-shifted queries that stay close enough to the original topic while spreading across different viewpoints.
+- Adds affirming and counter-frame probes so the corpus does not only argue the user's premise.
+- Runs the approved queries, normalizes results, embeds chunks, and compares the harness corpus against a plain baseline search.
+- Computes semantic spread, domain entropy, ecosystem entropy, and frame balance in ClickHouse when a SQL backend is active.
+- Serves a single-page dashboard with the pipeline state, query choices, metrics, SQL, source domains, clusters, and conflict pairs.
 
-**A. Constrained Query Divergence.** Candidate queries are embedded as unit vectors. We select the subset maximizing pairwise squared distance, subject to every query staying inside an epsilon-ball around the original query embedding c:
-
-```
-max  sum_{i<j} ||x_i - x_j||^2    s.t.  ||x_i - c||_2 < epsilon
-```
-
-Implementation detail worth judging: for unit vectors, `sum_{i<j} ||x_i - x_j||^2 = n^2 - ||sum_i x_i||^2`, so maximizing dispersion is exactly minimizing the resultant vector length ("balancing forces"). That identity makes the objective O(d) per subset, letting us brute-force the true optimum for hackathon-scale pools and fall back to greedy + 2-swap above `C(m, n) > 30k`. See `app/core/divergence.py` and `tests/test_divergence.py` (the identity is verified against the naive O(n^2 d) sum).
-
-Epsilon is **user-customizable** (slider / API field) and **optimizable**: auto mode sweeps the radius, builds the diversity-vs-epsilon curve, and picks the knee (smallest epsilon capturing >= 95% of attainable diversity, i.e. minimal topical drift for near-maximal viewpoint spread). The curve renders in the dashboard.
-
-**B. Real-Time Semantic Spread.** Average pairwise cosine distance over the scraped corpus, computed by ClickHouse itself:
-
-```
-Spread = 2 / (K(K-1)) * sum_{i<j} (1 - cos(e_i, e_j))
-```
-
-**C. Structural Information Entropy.** Shannon entropy over source domains and over media-ecosystem classes (government, academic, mainstream news, community, independent, ...):
-
-```
-H(S) = -sum_x p(x) log2 p(x)
-```
-
-Both B and C run as SQL (`cosineDistance`, window functions, `log2`) against `scraped_documents`, for the harness corpus and for a single-query control group, and the dashboard shows the lift. The exact SQL executed is returned in every metrics payload (`metrics.harness.sql`) so it can be displayed live.
-
-**D. Frame Balance (presupposition debiasing).** The deepest bias is not where you look but what you ask: "why does X do Y" presupposes X->Y, so every result argues inside the user's frame regardless of source diversity. The harness (1) detects the loaded frame and extracts the presupposed claim P (loaded-why, asserted, comparative, causal, and polar patterns), (2) recenters the epsilon-ball on the NEUTRALIZED topic core (directional verbs and stance scaffolding stripped), so divergence is constrained around the topic rather than the user's framing, (3) injects a dialectic probe pair (counter-frame: negation, reversal, alternative explanations; affirm-frame: the claim itself) with guaranteed selection slots via min-loss swaps under the resultant objective, and (4) proves the result with a stance-symmetry metric computed in ClickHouse:
-
-```
-balance = mean_e [ cos(e, a) - cos(e, n) ]
-```
-
-where `a` embeds P plus confirmation vocabulary and `n` embeds P plus refutation vocabulary. balance >> 0 means the corpus argues the asked frame; ~0 means evidence for and against P is symmetrically represented. Measured on the Tier-0 corpus: plain search lands at +0.07 to +0.19 (it argues the frame the user asked in); the harness lands inside the +-0.08 neutral band on every loaded query tested, a 45-90% bias reduction. See `app/core/reframe.py` and `tests/test_reframe.py`.
-
-## Quickstart (zero keys required)
+## Quickstart
 
 ```bash
+python -m venv .venv
+source .venv/bin/activate
 pip install -r requirements-dev.txt
-pytest                                   # 37 tests: math, SQL-vs-NumPy, agents, frame debiasing, e2e, API
-python scripts/demo.py "why does coffee cause cancer"
-uvicorn app.main:app --reload            # dashboard at http://localhost:8000
+pytest
+python scripts/demo.py "is nuclear energy safe"
+uvicorn app.main:app --reload
 ```
 
-Tier 0 runs everything locally: deterministic template generator, mock search corpus, inline ETL, embedded ClickHouse (chdb). Mock mode exists for development and CI. Judged demos should run with real backends (see `DEPLOYMENT.md`).
+Open [http://localhost:8000](http://localhost:8000) for the dashboard.
 
-Example Tier-0 output (`python scripts/demo.py "is nuclear energy safe"`):
+The default local mode uses deterministic query generation, mock search results, inline ETL, and embedded ClickHouse through `chdb` when available. If `chdb` is unavailable, the app falls back to an in-memory NumPy engine and reports that backend in `/api/health`.
 
+## Demo Flow
+
+1. Start the app and open the dashboard.
+2. Run a loaded query, for example `why does coffee cause cancer`.
+3. Point out the detected premise and the neutral topic.
+4. Show the approved query set, especially the affirm-frame and counter-frame probes.
+5. Compare harness metrics against the baseline search.
+6. Open the SQL panel to show the ClickHouse query used for the metric.
+7. End with the conflict view, which surfaces opposing clusters from the resulting corpus.
+
+For a live sponsor demo, configure the relevant environment variables from `.env.example` and verify `/api/health` before presenting.
+
+## How It Works
+
+```text
+User query
+  -> ingress guardrails
+  -> variance engine
+  -> critic
+  -> search execution
+  -> ETL and chunking
+  -> ClickHouse storage and metrics
+  -> synthesis and dashboard
 ```
-frame   : polar | presupposes 'nuclear energy safe'
-          neutral center: 'nuclear energy'
 
---- approved orthogonal queries ---
-  d=1.0206  nuclear energy criticism risks failures documented problems
-  d=0.9771  nuclear energy safe supporting evidence reasons documented [AFFIRM]
-  d=1.0532  nuclear energy international comparison other countries global approach
-  d=1.0656  nuclear energy case study firsthand account community experience
-  d=1.072   nuclear energy safe debunked fact check no link [COUNTER]
+The variance engine embeds candidate queries as unit vectors and selects the set with the largest pairwise spread while enforcing an epsilon radius around the neutralized topic. Auto epsilon sweeps the candidate space and chooses a radius that captures most of the available diversity without drifting away from the topic.
 
-  metric                         harness  baseline      lift
-  semantic spread                 0.4234     0.087   +386.7%
-  domain entropy (bits)           3.2929       1.0   +229.3%
-  ecosystem entropy (bits)        1.8513       1.0    +85.1%
-  unique domains                      10         2   +400.0%
-  frame balance (0=unbiased)     -0.0240   +0.1712  balanced
-```
+For loaded queries, the generator also injects dialectic probes. One probe tests the user's premise, and another looks for counter-evidence or alternative explanations. The critic checks safety, topicality, and duplicate queries before any search tool runs.
 
-The last row is the point of the project: the plain single-query baseline argues the question's own premise (+0.17); the harness corpus is statistically neutral on it (-0.02).
+Frame balance is the key output for premise neutrality. A baseline search usually leans toward the wording of the original question. The harness aims to move that score closer to zero by collecting evidence on both sides of the premise.
+
+## Sponsor Integrations
+
+| Sponsor | Where it fits | What the code does |
+| --- | --- | --- |
+| TrueFoundry | LLM gateway | Uses an OpenAI-compatible chat endpoint for generation, critic checks, and synthesis when `TRUEFOUNDRY_*` is configured. |
+| Composio | Search execution | Executes the configured Composio search tool for each approved query when `COMPOSIO_API_KEY` is present. |
+| Airbyte | Durable ETL path | Stages scraped records as JSONL and triggers a configured Airbyte sync when `ETL_BACKEND=airbyte`. Inline ETL still runs for demo latency. |
+| ClickHouse | Metrics engine | Stores documents and computes spread, entropy, and frame balance through SQL in `chdb` or ClickHouse Cloud. |
+| Render | Hosting | Uses `render.yaml` to deploy the FastAPI service and serve the dashboard. |
+
+All sponsor integrations are optional. The app starts locally without credentials, and `/api/health` reports which backend is active for each stage.
 
 ## API
 
-| Endpoint | Description |
+| Endpoint | Purpose |
 | --- | --- |
-| `POST /api/search` | `{query, n_queries (2-8), epsilon (number or "auto"), include_baseline, sync}` -> session id (async) or full result (sync) |
-| `GET /api/session/{id}` | Live pipeline state: stage, queries with distances and axes, rejections with reasons, frame analysis, metrics, clusters, scatter |
-| `GET /api/metrics/{id}` | Recomputed at request time inside ClickHouse (live OLAP query) |
-| `POST /api/epsilon/optimize` | Variance-engine-only sweep: diversity curve + recommended epsilon |
-| `GET /api/health` | Active backend per pipeline stage |
+| `POST /api/search` | Start a run. Use `sync: true` for a complete response in one request. |
+| `GET /api/session/{id}` | Read live session state, selected queries, metrics, clusters, and warnings. |
+| `GET /api/sessions` | List recent in-process sessions. |
+| `GET /api/metrics/{id}` | Recompute corpus metrics from the active database backend. |
+| `POST /api/epsilon/optimize` | Run only the epsilon sweep and candidate selection preview. |
+| `GET /api/health` | Show service status and active backend choices. |
 
-Key response fields beyond the corpus itself: `frame` (detected presupposition type, claim P, neutral topic, generated probes), `query_axes` (which approved query plays which role, including `affirm_frame` / `counter_frame`), `metrics.frame_balance` (`harness`, `baseline`, `bias_reduction_pct`, `verdict`), `epsilon_used` / `epsilon_curve`, and `metrics.harness.sql` (the exact SQL ClickHouse executed). Notes: use `n_queries >= 3` for loaded queries so the dialectic pair does not crowd out lens diversity, and prefer `epsilon: "auto"` (a hand-set radius is respected strictly and can be too tight to admit the dialectic probes; auto widens just enough and logs it).
+Example:
 
 ```bash
-curl -s localhost:8000/api/search -H 'content-type: application/json' \
-  -d '{"query": "is nuclear energy safe", "epsilon": "auto", "sync": true}' | python3 -m json.tool
+curl -s http://localhost:8000/api/search \
+  -H 'content-type: application/json' \
+  -d '{"query": "is nuclear energy safe", "epsilon": "auto", "sync": true}' \
+  | python -m json.tool
 ```
 
-## Repository structure
+## Configuration
 
-```
+Copy `.env.example` into your shell or deployment environment and fill in only the services you want to use.
+
+Key switches:
+
+| Variable | Effect |
+| --- | --- |
+| `TRUEFOUNDRY_BASE_URL`, `TRUEFOUNDRY_API_KEY`, `TRUEFOUNDRY_CHAT_MODEL` | Use TrueFoundry for LLM calls. |
+| `ANTHROPIC_API_KEY` | Use direct Anthropic calls if TrueFoundry is not configured. |
+| `COMPOSIO_API_KEY` | Use Composio instead of mock search. |
+| `AIRBYTE_CLIENT_ID`, `AIRBYTE_CLIENT_SECRET`, `AIRBYTE_CONNECTION_ID`, `ETL_BACKEND=airbyte` | Trigger Airbyte syncs in addition to inline ETL. |
+| `CLICKHOUSE_HOST`, `CLICKHOUSE_PASSWORD`, `CLICKHOUSE_MODE=cloud` | Use ClickHouse Cloud instead of embedded `chdb`. |
+| `EMBEDDING_BACKEND=api`, `EMBEDDING_API_BASE`, `EMBEDDING_MODEL` | Use an OpenAI-compatible embedding endpoint instead of local hash embeddings. |
+
+## Repository Structure
+
+```text
 app/
-  main.py                  FastAPI entrypoint, serves dashboard
-  config.py                env-driven backend selection (all sponsors optional)
-  deps.py                  lazy singletons
-  api/routes.py            /api/search, /api/session, /api/metrics, /api/epsilon/optimize
+  main.py                  FastAPI entrypoint and dashboard route
+  config.py                Environment-driven backend selection
+  deps.py                  Lazy backend singletons
+  api/routes.py            Search, session, metrics, epsilon, and health endpoints
   agents/
-    state.py               LangGraph HarnessState
-    generator.py           variance queries: LLM or perspective templates, dialectic probe
-                           injection with guaranteed slots, dispersion optimizer
-    critic.py              pre-execution audit: safety blocklist, radius re-check vs the
-                           neutral center, dedup, LLM veto
-    orchestrator.py        compiled cyclic StateGraph + run_pipeline
+    generator.py           Perspective query generation and dialectic probe injection
+    critic.py              Safety, relevance, and deduplication audit
+    orchestrator.py        LangGraph pipeline from ingress through synthesis
+    state.py               Shared pipeline state
   core/
-    embeddings.py          local deterministic embedder | OpenAI-compatible API
-    divergence.py          Pillar A: constrained max-dispersion + epsilon auto-tuner
-    reframe.py             Pillar D: presupposition detection, query neutralization,
-                           counter/affirm probes, stance anchors
-    metrics.py             NumPy ground truth for Pillars B/C (cross-checks SQL in tests)
-    synthesis.py           k-means viewpoint clusters, conflict pairs, PCA scatter
-    textproc.py            ingress guard, HTML->markdown, chunking, ecosystem classifier
+    divergence.py          Epsilon sweep and max-dispersion selection
+    reframe.py             Presupposition detection and neutral topic extraction
+    embeddings.py          Local hash embeddings or API embeddings
+    metrics.py             NumPy metric reference implementation
+    synthesis.py           Clustering, conflict pairs, and scatter data
+    textproc.py            Query sanitation, HTML cleanup, chunking, source labeling
   services/
-    truefoundry_client.py  gateway/Anthropic LLM client
-    composio_client.py     Composio tool execution (SDK or REST) + mock backend
-    airbyte_client.py      inline ETL + Airbyte staging/sync trigger
+    truefoundry_client.py  TrueFoundry and Anthropic chat client
+    composio_client.py     Composio search client and deterministic mock backend
+    airbyte_client.py      Inline ETL plus optional Airbyte sync trigger
   database/
-    clickhouse_client.py   chdb embedded | ClickHouse Cloud | memory; metrics SQL
-dashboard/index.html       single-file dashboard (Chart.js)
-scripts/demo.py            CLI end-to-end demo
-tests/                     37 tests incl. SQL==NumPy cross-validation and frame-balance e2e
-render.yaml                Render Blueprint (IaC)
-DEPLOYMENT.md              sponsor-by-sponsor integration guide + demo runbook
+    clickhouse_client.py   chdb, ClickHouse Cloud, and memory database engines
+dashboard/index.html       Demo dashboard
+scripts/demo.py            Terminal demo
+tests/                     Unit, API, SQL, and end-to-end tests
+DEPLOYMENT.md              Deployment and demo guide
+render.yaml                Render Blueprint
 ```
 
-## Sponsor integration matrix
+## Development
 
-| Sponsor | Pipeline placement | What it does here | Env switch |
-| --- | --- | --- | --- |
-| TrueFoundry | LLM gateway for generator/critic/synthesis | guardrails, rate limits, fallback, cost tracking on every LLM call | `TRUEFOUNDRY_*` |
-| Composio | search tool execution | concurrent live web searches via tool platform (SDK or REST) | `COMPOSIO_API_KEY` |
-| Airbyte | ETL of record | staged JSONL + programmatic connection sync into ClickHouse | `AIRBYTE_*`, `ETL_BACKEND=airbyte` |
-| ClickHouse | OLAP store + metric engine | stores chunks/embeddings; computes spread, entropy, and frame balance in SQL | `CLICKHOUSE_*` |
-| Render | hosting | blueprint deploy, health checks, public demo URL | `render.yaml` |
+```bash
+pytest
+python scripts/demo.py "why does coffee cause cancer" --json
+uvicorn app.main:app --reload
+```
 
-## Honest limitations
-
-Local embeddings are lexical (hash projection), good enough to drive the math and tests; switch `EMBEDDING_BACKEND=api` for semantic-grade vectors. Mock search is synthetic and labeled as such. Frame detection is pattern-based English heuristics covering five loaded-frame shapes (loaded-why, asserted, comparative, causal, polar); enabling an LLM backend extends coverage to arbitrary phrasings, while the deterministic probes and the frame-balance metric apply in both modes. The verdict band (|balance| < 0.08 = balanced) is calibrated for the local embedder; recalibrate against your embedding model if you change it. The Airbyte path triggers a real sync but the inline ETL remains the latency path for live demos. Session progress state is in-process (single worker); durable artifacts live in ClickHouse.
+The tests are designed to pass without external credentials. Mock search data is synthetic and labeled as mock output. Use Composio and provider keys when you want live web results.

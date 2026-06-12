@@ -23,10 +23,10 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Orthogonal Search Harness",
+    title="Parallax",
     description="Converts one biased query into a verified multi-perspective corpus: "
                 "detects and neutralizes the query's presupposition, fans out "
-                "epsilon-constrained orthogonal searches (including dialectic "
+                "epsilon-constrained perspective searches (including dialectic "
                 "affirm/counter probes), and proves diversity and premise-neutrality "
                 "with live OLAP metrics computed in ClickHouse SQL.",
     version="1.1.0",

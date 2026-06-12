@@ -1,7 +1,7 @@
 [project]
-name = "orthogonal-search-harness"
+name = "parallax-search"
 version = "1.1.0"
-description = "Anti-confirmation-bias search agent: detects the query's presupposition, searches orthogonal perspectives plus dialectic affirm/counter probes, and proves diversity and premise-neutrality live in ClickHouse SQL"
+description = "Anti-confirmation-bias search agent: detects the query's presupposition, searches multiple perspectives plus dialectic affirm/counter probes, and proves diversity and premise-neutrality live in ClickHouse SQL"
 requires-python = ">=3.10"
 
 [tool.pytest.ini_options]
