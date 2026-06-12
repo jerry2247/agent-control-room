@@ -6,6 +6,16 @@ Built by Jerry, Jack, Adam, and Ritwin for a hackathon.
 
 We used the sponsor stack where it naturally fit the product: TrueFoundry for optional LLM gateway calls, Composio for live search execution, Airbyte for the durable ETL path, ClickHouse for OLAP metrics, and Render for deployment. The project also runs without keys for local demos and CI, and `/api/health` reports the active backend choices.
 
+## Live Demo
+
+Parallax is deployed on Render:
+
+[https://orthogonal-search-harness.onrender.com](https://orthogonal-search-harness.onrender.com)
+
+The production API health check is available at:
+
+[https://orthogonal-search-harness.onrender.com/api/health](https://orthogonal-search-harness.onrender.com/api/health)
+
 ## What It Does
 
 - Finds loaded framing in questions like `why does coffee cause cancer` or `is nuclear energy safe`.
@@ -18,22 +28,15 @@ We used the sponsor stack where it naturally fit the product: TrueFoundry for op
 
 ## Quickstart
 
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements-dev.txt
-pytest
-python scripts/demo.py "is nuclear energy safe"
-uvicorn app.main:app --reload
-```
+Open the production app:
 
-Open [http://localhost:8000](http://localhost:8000) for the dashboard.
+[https://orthogonal-search-harness.onrender.com](https://orthogonal-search-harness.onrender.com)
 
-The default local mode uses deterministic query generation, mock search results, inline ETL, and embedded ClickHouse through `chdb` when available. If `chdb` is unavailable, the app falls back to an in-memory NumPy engine and reports that backend in `/api/health`.
+Try a loaded query such as `why does coffee cause cancer` or `is nuclear energy safe`. The dashboard will show the detected framing, generated perspective queries, retrieved sources, baseline comparison, ClickHouse metrics, and viewpoint clusters.
 
 ## Demo Flow
 
-1. Start the app and open the dashboard.
+1. Open [https://orthogonal-search-harness.onrender.com](https://orthogonal-search-harness.onrender.com).
 2. Run a loaded query, for example `why does coffee cause cancer`.
 3. Point out the detected premise and the neutral topic.
 4. Show the approved query set, especially the affirm-frame and counter-frame probes.
@@ -88,7 +91,7 @@ All sponsor integrations are optional. The app starts locally without credential
 Example:
 
 ```bash
-curl -s http://localhost:8000/api/search \
+curl -s https://orthogonal-search-harness.onrender.com/api/search \
   -H 'content-type: application/json' \
   -d '{"query": "is nuclear energy safe", "epsilon": "auto", "sync": true}' \
   | python -m json.tool
@@ -145,9 +148,12 @@ render.yaml                Render Blueprint
 ## Development
 
 ```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements-dev.txt
 pytest
 python scripts/demo.py "why does coffee cause cancer" --json
 uvicorn app.main:app --reload
 ```
 
-The tests are designed to pass without external credentials. Mock search data is synthetic and labeled as mock output. Use Composio and provider keys when you want live web results.
+For local development, open [http://localhost:8000](http://localhost:8000) after starting `uvicorn`. The local fallback mode can run without external credentials. Use the Render deployment for the production demo.
