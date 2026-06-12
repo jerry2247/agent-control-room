@@ -41,7 +41,7 @@
     padding:0 26px 110px;
     background-image:radial-gradient(1200px 600px at 70% -10%, rgba(91,155,213,.05), transparent 60%);
   }
-  .wrap { max-width:var(--maxw); margin:0 auto; }
+  .wrap { max-width:var(--maxw); margin:0 auto; overflow:hidden; }
 
   .eyebrow { font-size:11px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:var(--faint); }
   .mono { font-family:var(--mono); }
@@ -98,30 +98,51 @@
 
   /* ---- pipeline rail ---- */
   #rail { margin:26px 0 4px; }
-  .rail-track { position:relative; display:flex; justify-content:space-between; padding:20px 0 4px; }
-  .rail-track::before, .rail-track::after { content:""; position:absolute; top:26px; left:0; height:1px; }
+  .rail-track {
+    position:relative; display:flex; justify-content:space-between;
+    align-items:center; height:9px;
+  }
+  .rail-track::before, .rail-track::after {
+    content:""; position:absolute; top:50%; left:0; height:1px; transform:translateY(-50%);
+  }
   .rail-track::before { width:100%; background:var(--line); }
   .rail-track::after { width:var(--fill,0%); background:var(--accent); transition:width .7s var(--ease); }
-  .node { position:relative; z-index:1; display:flex; flex-direction:column; align-items:center; gap:10px; flex:1; }
-  .node .dot { width:9px; height:9px; border-radius:50%; background:var(--bg); border:1px solid var(--neutral-mark);
-    transition:background .4s var(--ease), border-color .4s var(--ease), transform .4s var(--ease); }
-  .node .nlabel { font-size:11px; letter-spacing:.04em; color:var(--faint); transition:color .4s var(--ease); }
+  .node {
+    position:relative; z-index:1; display:flex; flex-direction:column; align-items:center;
+    gap:10px; flex:1;
+  }
+  .node .dot {
+    width:9px; height:9px; border-radius:50%; background:var(--bg); border:1px solid var(--neutral-mark);
+    transition:background .4s var(--ease), border-color .4s var(--ease), transform .4s var(--ease);
+  }
+  .node .nlabel {
+    position:absolute; top:100%; margin-top:10px;
+    font-size:11px; letter-spacing:.04em; color:var(--faint); white-space:nowrap;
+    transition:color .4s var(--ease);
+  }
   .node.done .dot { background:var(--dim); border-color:var(--dim); }
   .node.done .nlabel { color:var(--dim); }
   .node.active .dot { background:var(--accent); border-color:var(--accent); transform:scale(1.3); animation:pulse 1.8s var(--ease) infinite; }
   .node.active .nlabel { color:var(--text); }
   @keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(91,155,213,.35);} 50%{box-shadow:0 0 0 7px rgba(91,155,213,0);} }
-  .loop { position:absolute; top:4px; left:20%; transform:translateX(-50%); width:46px; height:18px; pointer-events:none; }
+  .loop { position:absolute; top:-16px; left:20%; transform:translateX(-50%); width:46px; height:14px; pointer-events:none; }
   .loop svg { width:100%; height:100%; overflow:visible; }
   .loop path { fill:none; stroke:var(--line); stroke-width:1.2; transition:stroke .4s var(--ease); }
   #rail.loop-on .loop path { stroke:var(--accent); }
-  .stage-note { text-align:center; font-size:12px; color:var(--faint); margin-top:13px; min-height:15px; font-family:var(--mono); letter-spacing:.02em; }
+  .stage-note { text-align:center; font-size:12px; color:var(--faint); margin-top:28px; min-height:15px; font-family:var(--mono); letter-spacing:.02em; }
 
   /* ---- panels / layout ---- */
-  main { margin-top:14px; }
+  main {
+    margin-top:14px;
+    opacity:0; transform:translateY(14px);
+    transition:opacity .65s var(--ease), transform .65s var(--ease);
+    pointer-events:none;
+  }
+  main.entered { opacity:1; transform:none; pointer-events:auto; }
   .panel {
     background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
     padding:22px 24px; margin-bottom:20px;
+    overflow:hidden; min-width:0;
   }
   .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
   .grid2 > .panel { margin-bottom:0; }
@@ -208,12 +229,12 @@
   .narrative { font-size:13.5px; color:var(--text); margin-top:14px; line-height:1.7; }
 
   /* ---- tables ---- */
-  table { width:100%; border-collapse:collapse; font-size:13px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; table-layout:fixed; }
   th { text-align:left; font-size:10.5px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--faint); padding:0 14px 11px; border-bottom:1px solid var(--line); }
   th.num, td.num { text-align:right; font-family:var(--mono); }
   td { padding:12px 14px; border-bottom:1px solid var(--line-soft); vertical-align:top; line-height:1.5; }
   tr:last-child td { border-bottom:0; }
-  td.q { font-family:var(--mono); font-size:12px; color:var(--text); }
+  td.q { font-family:var(--mono); font-size:12px; color:var(--text); word-break:break-word; overflow-wrap:break-word; }
   .status { font-size:12px; color:var(--dim); display:inline-flex; align-items:center; gap:7px; }
   .status::before { content:""; width:6px; height:6px; border-radius:50%; flex:none; }
   .status.approved::before { background:var(--accent); }
@@ -449,7 +470,11 @@ function countUp(el, to, fmt, dur=900) {
   const t0 = performance.now(), ease = t => 1 - Math.pow(1 - t, 4);
   (function step(now){ const p=Math.min(1,(now-t0)/dur); el.textContent=fmt(to*ease(p)); if(p<1)requestAnimationFrame(step); })(performance.now());
 }
-function reveal(){ document.querySelectorAll('.reveal').forEach((el,i)=>{ if(!el.classList.contains('in')) setTimeout(()=>el.classList.add('in'), 40+i*70); }); }
+function reveal(){
+  const m=document.querySelector('main');
+  m.classList.add('entered');
+  document.querySelectorAll('.reveal').forEach((el,i)=>{ if(!el.classList.contains('in')) setTimeout(()=>el.classList.add('in'), 80+i*70); });
+}
 
 // ---- render ----
 function render(s) {
@@ -769,8 +794,7 @@ const CSTL = (function(){
   return { populate };
 })();
 
-// idle state: reveal the empty dashboard panels and the boundary haze (no nodes)
-window.addEventListener('load', ()=>{ reveal(); try { CSTL.populate({approved_queries:[]}); } catch(e){} });
+window.addEventListener('load', ()=>{ try { CSTL.populate({approved_queries:[]}); } catch(e){} });
 </script>
 </body>
 </html>
